@@ -242,33 +242,36 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
                     </motion.div>
 
-                    {/* Trust Badges */}
+                    {/* Stats Section moved to Hero */}
                     <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.5 }}
-                        className="flex flex-wrap justify-center items-center gap-8"
+                        className="mt-12 w-full"
                     >
-                        {[
-                            { icon: "shield", text: "HIPAA Compliant" },
-                            { icon: "users", text: "10K+ Patients" },
-                            { icon: "award", text: "Award Winning" },
-                        ].map((item, i) => (
-                            <motion.div
-                                key={i}
-                                whileHover={{ y: -2 }}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-full ${isDark ? 'bg-white/5 border border-white/10' : 'bg-black/5 border border-black/10'}`}
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-cyan-400">
-                                    {item.icon === "shield" && <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>}
-                                    {item.icon === "users" && <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></>}
-                                    {item.icon === "award" && <><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></>}
-                                </svg>
-                                <span className={`text-sm font-medium ${c.textSecondary}`}>
-                                    {item.text}
-                                </span>
-                            </motion.div>
-                        ))}
+                        <div className="flex flex-wrap justify-center items-center gap-6">
+                            {[
+                                { value: "98%", label: "Recovery Rate" },
+                                { value: "1K+", label: "Happy Patients" },
+                                { value: "50+", label: "Expert Doctors" },
+                                { value: "24/7", label: "Support" },
+                            ].map((stat, i) => (
+                                <motion.div
+                                    key={i}
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    whileInView={{ opacity: 1, scale: 1 }}
+                                    viewport={{ once: true }}
+                                    transition={{ delay: i * 0.1 }}
+                                    whileHover={{ y: -2 }}
+                                    className={`flex flex-col items-center justify-center p-6 rounded-2xl min-w-[140px] backdrop-blur-sm ${isDark ? 'bg-white/5 border border-white/10' : 'bg-black/5 border border-black/10'}`}
+                                >
+                                    <div className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent mb-1">
+                                        {stat.value}
+                                    </div>
+                                    <p className={`font-medium text-sm ${c.textSecondary}`}>{stat.label}</p>
+                                </motion.div>
+                            ))}
+                        </div>
                     </motion.div>
                 </div>
 
@@ -294,7 +297,8 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             </section>
 
             {/* Features Section */}
-            <section className={`py-28 px-4 ${isDark ? 'bg-slate-800/50' : 'bg-slate-100/50'}`}>
+            {/* Features Section */}
+            <section className={`py-20 px-4 ${isDark ? 'bg-slate-800/50' : 'bg-slate-100/50'}`}>
                 <div className="max-w-6xl mx-auto">
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
@@ -346,40 +350,10 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 </div>
             </section>
 
-            {/* Stats Section */}
-            <section className="py-20 px-4">
-                <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    className="max-w-5xl mx-auto rounded-3xl p-12 shadow-2xl bg-gradient-to-r from-cyan-500 to-teal-400"
-                >
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-                        {[
-                            { value: "98%", label: "Recovery Rate" },
-                            { value: "10K+", label: "Happy Patients" },
-                            { value: "500+", label: "Expert Doctors" },
-                            { value: "24/7", label: "Support" },
-                        ].map((stat, i) => (
-                            <motion.div
-                                key={i}
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                whileInView={{ opacity: 1, scale: 1 }}
-                                viewport={{ once: true }}
-                                transition={{ delay: i * 0.1 }}
-                            >
-                                <div className="text-4xl md:text-5xl font-bold text-slate-900 mb-2">
-                                    {stat.value}
-                                </div>
-                                <p className="text-slate-800/80 font-medium">{stat.label}</p>
-                            </motion.div>
-                        ))}
-                    </div>
-                </motion.div>
-            </section>
+
 
             {/* How It Works */}
-            <section className={`py-28 px-4 ${isDark ? 'bg-slate-800/50' : 'bg-slate-100/50'}`}>
+            <section className={`py-20 px-4 ${isDark ? 'bg-slate-800/50' : 'bg-slate-100/50'}`}>
                 <div className="max-w-5xl mx-auto">
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
@@ -438,7 +412,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
 
             {/* CTA Section */}
-            <section className={`py-28 px-4 ${isDark ? 'bg-slate-800/50' : 'bg-slate-100/50'}`}>
+            <section className={`py-20 px-4 ${isDark ? 'bg-slate-800/50' : 'bg-slate-100/50'}`}>
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     whileInView={{ opacity: 1, scale: 1 }}
@@ -479,17 +453,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                         <span>→</span>
                     </motion.button>
 
-                    <div className="flex flex-wrap justify-center gap-6">
-                        {["Free 14-day trial", "No credit card", "Cancel anytime"].map((text, i) => (
-                            <span key={i} className={`flex items-center gap-2 text-sm ${c.textSecondary}`}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-500">
-                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                                </svg>
-                                {text}
-                            </span>
-                        ))}
-                    </div>
+
                 </motion.div>
             </section>
 
@@ -507,7 +471,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                         </span>
                     </div>
                     <p className={`text-sm ${c.textSecondary}`}>
-                        © 2024 PhysioFlow. All rights reserved.
+                        © 2026 PhysioFlow. All rights reserved.
                     </p>
                     <div className="flex gap-6">
                         {["Privacy", "Terms", "Contact"].map((link) => (
