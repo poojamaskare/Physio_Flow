@@ -72,7 +72,7 @@ export default function ExercisePage() {
             if (!sessionStarted || !videoEl || !canvasEl || !stream) return
 
             try {
-                const { PoseEngine } = await import('@/pose-detection/poseEngine.js')
+                const { PoseEngine } = await import('@/pose-detection/poseEngine')
                 const { PoseRenderer } = await import('@/pose-detection/poseRenderer.js')
                 const { PoseAnalyzer } = await import('@/pose-detection/poseAnalyzer.js')
                 const { defaultExercise } = await import('@/pose-detection/exerciseConfig.js')

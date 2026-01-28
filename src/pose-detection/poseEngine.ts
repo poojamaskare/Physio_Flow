@@ -39,7 +39,7 @@ export class PoseEngine {
         this.detector = await poseDetection.createDetector(
             poseDetection.SupportedModels.MoveNet,
             {
-                modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+                modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER,
                 enableSmoothing: true,
                 minPoseScore: 0.25
             }
