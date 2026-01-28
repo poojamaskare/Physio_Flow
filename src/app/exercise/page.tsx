@@ -325,7 +325,7 @@ export default function ExercisePage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+            <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-900 text-slate-900 dark:text-white transition-colors duration-500">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-cyan-500"></div>
             </div>
         )
@@ -333,7 +333,7 @@ export default function ExercisePage() {
 
     if (assignments.length === 0) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white p-8">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-8 transition-colors duration-500">
                 <h1 className="text-2xl font-bold mb-4">No Exercises Assigned</h1>
                 <button onClick={handleBack} className="px-6 py-2 bg-slate-800 rounded-xl">← Back</button>
             </div>
@@ -343,14 +343,14 @@ export default function ExercisePage() {
     const currentTarget = assignments[currentIndex]?.reps_per_set || 10
 
     return (
-        <div className="min-h-screen bg-slate-900 text-white" ref={containerRef}>
+        <div className="min-h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-white transition-colors duration-500" ref={containerRef}>
             {sessionStarted ? (
                 <div className="fixed inset-0 bg-black">
                     <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover -scale-x-100" />
                     <canvas ref={canvasRef} className="absolute inset-0 w-full h-full -scale-x-100" />
 
                     {isInitializing && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-sm z-50">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm z-50">
                             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-cyan-500 mb-4"></div>
                             <p className="text-cyan-400 font-bold tracking-widest animate-pulse">BOOTING AI ENGINE...</p>
                         </div>
@@ -371,7 +371,7 @@ export default function ExercisePage() {
                         </div>
                     </div>
 
-                    <div className="absolute top-4 left-4 bg-slate-900 border border-emerald-500/50 rounded-2xl p-6 text-center shadow-2xl shadow-emerald-500/20 z-10 transition-all">
+                    <div className="absolute top-4 left-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-emerald-500/50 rounded-2xl p-6 text-center shadow-2xl dark:shadow-emerald-500/20 z-10 transition-all">
                         <p className="text-xs font-black text-emerald-400 tracking-[0.2em] mb-1">REPS</p>
                         <p className="text-6xl font-black text-white">{repCount}</p>
                         <p className="text-xs text-slate-400 mt-1">Goal: {currentTarget}</p>

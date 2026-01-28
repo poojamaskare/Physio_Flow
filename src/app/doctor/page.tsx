@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { getCurrentUser, signOut, User } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import DoctorProgress from '@/app/components/DoctorProgress'
+import ThemeToggle from '../components/ThemeToggle'
 
 type Tab = 'dashboard' | 'patients' | 'exercises' | 'reports'
 
@@ -262,15 +263,15 @@ export default function DoctorDashboard() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 text-slate-900 dark:text-white flex transition-colors duration-500">
             {/* Sidebar */}
-            <aside className="w-64 bg-slate-800/80 backdrop-blur-xl border-r border-white/10 flex flex-col">
-                <div className="p-6 border-b border-white/10">
+            <aside className="w-64 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border-r border-slate-200 dark:border-white/10 flex flex-col transition-colors duration-500">
+                <div className="p-6 border-b border-slate-200 dark:border-white/10">
                     <div className="flex items-center gap-3">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-cyan-400">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-cyan-600 dark:text-cyan-400">
                             <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
                         </svg>
-                        <span className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">
+                        <span className="text-xl font-bold bg-gradient-to-r from-cyan-600 to-teal-500 dark:from-cyan-400 dark:to-teal-400 bg-clip-text text-transparent">
                             PhysioFlow
                         </span>
                     </div>
@@ -282,8 +283,8 @@ export default function DoctorDashboard() {
                             key={item.id}
                             onClick={() => setActiveTab(item.id)}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl mb-2 transition-all ${activeTab === item.id
-                                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                                : 'hover:bg-white/5 text-slate-300'
+                                ? 'bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 dark:border-cyan-500/30'
+                                : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300'
                                 }`}
                         >
                             <span className="text-xl">{item.icon}</span>
@@ -292,19 +293,19 @@ export default function DoctorDashboard() {
                     ))}
                 </nav>
 
-                <div className="p-4 border-t border-white/10">
+                <div className="p-4 border-t border-slate-200 dark:border-white/10">
                     <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-teal-500 flex items-center justify-center font-bold">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-teal-500 flex items-center justify-center font-bold text-white">
                             {user?.name?.charAt(0) || 'D'}
                         </div>
                         <div>
-                            <p className="font-medium text-sm">Dr. {user?.name}</p>
-                            <p className="text-xs text-slate-400">Doctor</p>
+                            <p className="font-medium text-sm text-slate-900 dark:text-white">Dr. {user?.name}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Doctor</p>
                         </div>
                     </div>
                     <button
                         onClick={handleLogout}
-                        className="w-full px-4 py-2 border border-white/20 rounded-lg text-slate-300 hover:bg-red-500/10 hover:border-red-500 hover:text-red-400 transition-all text-sm"
+                        className="w-full px-4 py-2 border border-slate-200 dark:border-white/20 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-500/10 hover:border-red-200 dark:hover:border-red-500 hover:text-red-600 dark:hover:text-red-400 transition-all text-sm"
                     >
                         Logout
                     </button>
@@ -312,7 +313,8 @@ export default function DoctorDashboard() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 p-8 overflow-auto">
+            <main className="flex-1 p-8 overflow-auto relative transition-colors duration-500">
+                <ThemeToggle className="absolute top-6 right-8 z-50" />
                 {/* Dashboard Tab */}
                 {activeTab === 'dashboard' && (
                     <div className="space-y-6">

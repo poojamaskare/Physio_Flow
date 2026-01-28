@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { 
-  Activity, 
+import {
+  Activity,
   Apple,
   TrendingUp,
   LogOut,
@@ -14,6 +14,7 @@ import PatientOverview from './PatientOverview';
 import ExercisePage from './ExercisePage';
 import PatientDietPlan from './PatientDietPlan';
 import ProgressPage from './ProgressPage';
+import ThemeToggle from './ThemeToggle';
 
 interface PatientDashboardProps {
   onLogout: () => void;
@@ -52,9 +53,8 @@ export default function PatientDashboard({ onLogout }: PatientDashboardProps) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-white dark:bg-gray-800 shadow-xl z-40 transform transition-transform duration-300 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 border-r border-gray-100 dark:border-gray-700`}
+        className={`fixed top-0 left-0 h-full w-64 bg-white dark:bg-gray-800 shadow-xl z-40 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          } lg:translate-x-0 border-r border-gray-100 dark:border-gray-700`}
       >
         <div className="p-6 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-3">
@@ -76,11 +76,10 @@ export default function PatientDashboard({ onLogout }: PatientDashboardProps) {
                 setActiveTab(item.id);
                 setSidebarOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                activeTab === item.id
-                  ? 'bg-gradient-to-r from-cyan-500 to-teal-400 text-white shadow-lg shadow-cyan-500/20'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-cyan-600 dark:hover:text-cyan-400'
-              }`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === item.id
+                ? 'bg-gradient-to-r from-cyan-500 to-teal-400 text-white shadow-lg shadow-cyan-500/20'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-cyan-600 dark:hover:text-cyan-400'
+                }`}
             >
               <item.icon className="w-5 h-5" />
               <span className="font-medium">{item.label}</span>
@@ -100,7 +99,8 @@ export default function PatientDashboard({ onLogout }: PatientDashboardProps) {
       </aside>
 
       {/* Main Content */}
-      <main className="lg:ml-64 p-4 lg:p-8 pt-20 lg:pt-8 transition-all duration-300">
+      <main className="lg:ml-64 p-4 lg:p-8 pt-20 lg:pt-8 transition-all duration-300 relative">
+        <ThemeToggle className="absolute top-4 right-4 lg:top-8 lg:right-8 z-50" />
         <div className="max-w-7xl mx-auto space-y-6">
           {activeTab === 'dashboard' && <PatientOverview onCallDoctor={handleCallDoctor} callActive={callActive} />}
           {activeTab === 'exercise' && <ExercisePage />}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser, signOut, User } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
+import ThemeToggle from '../components/ThemeToggle'
 
 interface Exercise {
     id: string
@@ -127,9 +128,9 @@ export default function PatientDashboard() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white transition-colors duration-300">
             {/* Header */}
-            <header className="flex justify-between items-center px-8 py-5 bg-slate-800/80 backdrop-blur-xl border-b border-white/10">
+            <header className="flex justify-between items-center px-8 py-5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border-b border-slate-200 dark:border-white/10 sticky top-0 z-50">
                 <div className="flex items-center gap-3">
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-cyan-400">
                         <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
@@ -138,12 +139,15 @@ export default function PatientDashboard() {
                         PhysioFlow
                     </span>
                 </div>
-                <button
-                    onClick={handleLogout}
-                    className="px-5 py-2 border border-white/20 rounded-lg text-slate-300 hover:bg-red-500/10 hover:border-red-500 hover:text-red-400 transition-all"
-                >
-                    Logout
-                </button>
+                <div className="flex items-center gap-4">
+                    <ThemeToggle />
+                    <button
+                        onClick={handleLogout}
+                        className="px-5 py-2 border border-slate-200 dark:border-white/20 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-500/10 hover:border-red-200 dark:hover:border-red-500 hover:text-red-500 dark:hover:text-red-400 transition-all"
+                    >
+                        Logout
+                    </button>
+                </div>
             </header>
 
             {/* Main */}
@@ -163,69 +167,71 @@ export default function PatientDashboard() {
                 </div>
 
                 {/* Exercise Session Card */}
-                {assignments.length > 0 ? (
-                    <div className="mb-8 p-8 bg-gradient-to-br from-cyan-500/10 to-teal-500/10 border border-cyan-500/30 rounded-2xl">
-                        <div className="flex items-start justify-between mb-6">
-                            <div>
-                                <h2 className="text-2xl font-bold mb-2">Your Exercise Plan</h2>
-                                <p className="text-slate-400">
-                                    {assignments.length} exercise{assignments.length > 1 ? 's' : ''} assigned by your doctor
-                                </p>
-                            </div>
-                            <button
-                                onClick={startSession}
-                                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-xl text-slate-900 font-bold flex items-center gap-3 hover:shadow-lg hover:shadow-cyan-500/25 hover:-translate-y-1 transition-all"
-                            >
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <polygon points="5,3 19,12 5,21"></polygon>
-                                </svg>
-                                Start Session
-                            </button>
-                        </div>
-
-                        {/* Exercise List */}
-                        <div className="grid gap-4">
-                            {assignments.map((assignment, index) => (
-                                <div
-                                    key={assignment.id}
-                                    className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-xl border border-white/5"
+                {
+                    assignments.length > 0 ? (
+                        <div className="mb-8 p-8 bg-gradient-to-br from-cyan-500/10 to-teal-500/10 border border-cyan-500/30 rounded-2xl">
+                            <div className="flex items-start justify-between mb-6">
+                                <div>
+                                    <h2 className="text-2xl font-bold mb-2">Your Exercise Plan</h2>
+                                    <p className="text-slate-400">
+                                        {assignments.length} exercise{assignments.length > 1 ? 's' : ''} assigned by your doctor
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={startSession}
+                                    className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-xl text-slate-900 font-bold flex items-center gap-3 hover:shadow-lg hover:shadow-cyan-500/25 hover:-translate-y-1 transition-all"
                                 >
-                                    <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center text-cyan-400 font-bold">
-                                        {index + 1}
-                                    </div>
-                                    <div className="flex-1">
-                                        <h3 className="font-semibold">{assignment.exercise?.name || 'Exercise'}</h3>
-                                        <p className="text-sm text-slate-400">
-                                            {assignment.sets} sets × {assignment.reps_per_set} reps
-                                            {assignment.notes && ` • ${assignment.notes}`}
-                                        </p>
-                                    </div>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${assignment.exercise?.difficulty === 'easy'
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <polygon points="5,3 19,12 5,21"></polygon>
+                                    </svg>
+                                    Start Session
+                                </button>
+                            </div>
+
+                            {/* Exercise List */}
+                            <div className="grid gap-4">
+                                {assignments.map((assignment, index) => (
+                                    <div
+                                        key={assignment.id}
+                                        className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-xl border border-white/5"
+                                    >
+                                        <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center text-cyan-400 font-bold">
+                                            {index + 1}
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="font-semibold">{assignment.exercise?.name || 'Exercise'}</h3>
+                                            <p className="text-sm text-slate-400">
+                                                {assignment.sets} sets × {assignment.reps_per_set} reps
+                                                {assignment.notes && ` • ${assignment.notes}`}
+                                            </p>
+                                        </div>
+                                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${assignment.exercise?.difficulty === 'easy'
                                             ? 'bg-green-500/20 text-green-400'
                                             : assignment.exercise?.difficulty === 'hard'
                                                 ? 'bg-red-500/20 text-red-400'
                                                 : 'bg-yellow-500/20 text-yellow-400'
-                                        }`}>
-                                        {assignment.exercise?.difficulty || 'medium'}
-                                    </span>
-                                </div>
-                            ))}
+                                            }`}>
+                                            {assignment.exercise?.difficulty || 'medium'}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                ) : (
-                    <div className="mb-8 p-8 bg-slate-800/50 border border-white/10 rounded-2xl text-center">
-                        <div className="w-20 h-20 bg-slate-700/50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-500">
-                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                            </svg>
+                    ) : (
+                        <div className="mb-8 p-8 bg-slate-800/50 border border-white/10 rounded-2xl text-center">
+                            <div className="w-20 h-20 bg-slate-700/50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-500">
+                                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-semibold mb-2">No Exercises Assigned Yet</h3>
+                            <p className="text-slate-400 mb-4">
+                                Your doctor will assign exercises for you to practice.
+                                Check back later or contact your doctor.
+                            </p>
                         </div>
-                        <h3 className="text-xl font-semibold mb-2">No Exercises Assigned Yet</h3>
-                        <p className="text-slate-400 mb-4">
-                            Your doctor will assign exercises for you to practice.
-                            Check back later or contact your doctor.
-                        </p>
-                    </div>
-                )}
+                    )
+                }
 
                 {/* Additional Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -287,7 +293,7 @@ export default function PatientDashboard() {
                         </p>
                     </div>
                 </div>
-            </main>
-        </div>
+            </main >
+        </div >
     )
 }
