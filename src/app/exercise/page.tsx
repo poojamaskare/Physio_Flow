@@ -32,6 +32,7 @@ export default function ExercisePage() {
     const [currentIndex, setCurrentIndex] = useState(0)
     const [sessionStarted, setSessionStarted] = useState(false)
     const [sessionLoading, setSessionLoading] = useState(false)
+    const [isInitializing, setIsInitializing] = useState(false)
     const [error, setError] = useState('')
     const [repCount, setRepCount] = useState(0)
 
@@ -56,6 +57,171 @@ export default function ExercisePage() {
             fetchAssignments()
         }
     }, [user])
+
+    useEffect(() => {
+        let mounted = true
+        let renderer: any = null
+        let analyzer: any = null
+        let animationId: number
+
+        const initEngine = async () => {
+            const videoEl = videoRef.current
+            const canvasEl = canvasRef.current
+            const stream = streamRef.current
+
+            if (!sessionStarted || !videoEl || !canvasEl || !stream) return
+
+            try {
+                const { PoseEngine } = await import('@/pose-detection/poseEngine.js')
+                const { PoseRenderer } = await import('@/pose-detection/poseRenderer.js')
+                const { PoseAnalyzer } = await import('@/pose-detection/poseAnalyzer.js')
+                const { defaultExercise } = await import('@/pose-detection/exerciseConfig.js')
+
+                if (!mounted) return
+
+                videoEl.srcObject = stream
+                await videoEl.play()
+
+                poseEngineRef.current = new PoseEngine(videoEl)
+                await poseEngineRef.current.init()
+
+                const currentExercise = assignments[currentIndex]?.exercise
+                if (referenceVideoRef.current && currentExercise?.video_url) {
+                    referenceVideoRef.current.src = currentExercise.video_url
+                    referenceVideoRef.current.load()
+
+                    await new Promise((resolve) => {
+                        referenceVideoRef.current!.onloadedmetadata = () => resolve(true)
+                        referenceVideoRef.current!.onerror = () => resolve(false)
+                    })
+
+                    if (mounted && referenceVideoRef.current.readyState >= 1) {
+                        referencePoseEngineRef.current = new PoseEngine(referenceVideoRef.current)
+                        await referencePoseEngineRef.current.init()
+                        try {
+                            await referenceVideoRef.current.play()
+                        } catch (e) { }
+                    }
+                }
+
+                if (!mounted) return
+
+                if (!canvasEl || typeof canvasEl.getContext !== 'function') {
+                    setError('Graphics error: Canvas not found. Please refresh the page.')
+                    return
+                }
+
+                renderer = new PoseRenderer(canvasEl)
+                analyzer = new PoseAnalyzer(defaultExercise)
+
+                if (containerRef.current) {
+                    const rect = containerRef.current.getBoundingClientRect()
+                    renderer.resize(rect.width, rect.height)
+                }
+
+                let poseHoldFrames = 0
+                let repCounted = false
+                let currentReferencePose: any = null
+                const targetReps = assignments[currentIndex]?.reps_per_set || 10
+
+                const detect = async () => {
+                    if (!mounted || !poseEngineRef.current) return
+
+                    try {
+                        const userPoses = await poseEngineRef.current.estimate()
+
+                        if (referencePoseEngineRef.current && referenceVideoRef.current?.readyState >= 2) {
+                            const refPoses = await referencePoseEngineRef.current.estimate()
+                            if (refPoses?.length) {
+                                currentReferencePose = refPoses[0]
+                            }
+                        }
+
+                        if (userPoses?.length) {
+                            const userPose = userPoses[0]
+
+                            if (containerRef.current && videoEl && canvasEl) {
+                                const container = containerRef.current.getBoundingClientRect()
+
+                                if (renderer.displayWidth !== container.width || renderer.displayHeight !== container.height) {
+                                    renderer.resize(container.width, container.height)
+                                }
+
+                                const video = {
+                                    width: videoEl.videoWidth || 640,
+                                    height: videoEl.videoHeight || 480
+                                }
+
+                                const scale = Math.max(container.width / video.width, container.height / video.height)
+                                const displayedWidth = video.width * scale
+                                const displayedHeight = video.height * scale
+                                const offsetX = (displayedWidth - container.width) / 2
+                                const offsetY = (displayedHeight - container.height) / 2
+
+                                const scaledKeypoints = userPose.keypoints.map((kp: any) => ({
+                                    ...kp,
+                                    x: kp.x * scale - offsetX,
+                                    y: kp.y * scale - offsetY
+                                }))
+
+                                let isCorrect = false
+                                if (currentReferencePose) {
+                                    const comparison = analyzer.comparePosesWithFeedback(
+                                        userPose.keypoints,
+                                        currentReferencePose.keypoints
+                                    )
+                                    isCorrect = comparison.isCorrect
+                                } else {
+                                    const analysis = analyzer.evaluate(userPose.keypoints)
+                                    isCorrect = analysis.allSegmentsHit && analysis.accuracy >= 0.60
+                                }
+
+                                if (renderer) {
+                                    renderer.renderSimple(scaledKeypoints, isCorrect)
+                                }
+
+                                if (isCorrect && repCount < targetReps) {
+                                    poseHoldFrames++
+                                    if (poseHoldFrames >= 10 && !repCounted) {
+                                        setRepCount(prev => {
+                                            const next = prev + 1
+                                            return next
+                                        })
+                                        repCounted = true
+                                        if (renderer) renderer.triggerCelebration()
+                                    }
+                                } else {
+                                    if (repCounted && poseHoldFrames > 0) {
+                                        repCounted = false
+                                    }
+                                    poseHoldFrames = 0
+                                }
+                            }
+                        }
+                    } catch (err) { }
+
+                    animationId = requestAnimationFrame(detect)
+                }
+
+                detect()
+                setIsInitializing(false)
+
+            } catch (err: any) {
+                setError(`AI Initialization failed: ${err.message || 'Unknown error'}`)
+                stopSession()
+            }
+        }
+
+        if (sessionStarted) {
+            const timer = setTimeout(initEngine, 800)
+            return () => {
+                mounted = false
+                clearTimeout(timer)
+                if (animationId) cancelAnimationFrame(animationId)
+            }
+        }
+    }, [sessionStarted, assignments, currentIndex])
+
 
     const checkAuth = async () => {
         const currentUser = await getCurrentUser()
@@ -97,135 +263,26 @@ export default function ExercisePage() {
     const startSession = async () => {
         setSessionLoading(true)
         setError('')
+        setIsInitializing(true)
 
         try {
-            // Request camera access
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: 1280, height: 720 },
+                video: {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: 'user'
+                },
                 audio: false
             })
 
             streamRef.current = stream
-
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream
-                await videoRef.current.play()
-            }
-
-            // Initialize pose detection
-            const { PoseEngine } = await import('@/pose-detection/poseEngine')
-            const { PoseRenderer } = await import('@/pose-detection/poseRenderer.js')
-            const { PoseAnalyzer } = await import('@/pose-detection/poseAnalyzer.js')
-            const { defaultExercise } = await import('@/pose-detection/exerciseConfig.js')
-
-            poseEngineRef.current = new PoseEngine(videoRef.current)
-            await poseEngineRef.current.init()
-
-            // Initialize reference video pose engine if video available
-            if (referenceVideoRef.current && currentExercise?.video_url) {
-                referenceVideoRef.current.src = currentExercise.video_url
-                referenceVideoRef.current.load()
-                await new Promise<void>((resolve) => {
-                    referenceVideoRef.current!.onloadeddata = () => resolve()
-                    referenceVideoRef.current!.onerror = () => resolve()
-                })
-
-                if (referenceVideoRef.current.readyState >= 2) {
-                    referencePoseEngineRef.current = new PoseEngine(referenceVideoRef.current)
-                    await referencePoseEngineRef.current.init()
-                    referenceVideoRef.current.play()
-                }
-            }
-
-            // Start pose detection loop
-            const poseRenderer = new PoseRenderer(canvasRef.current)
-            const poseAnalyzer = new PoseAnalyzer(defaultExercise)
-
-            let poseHoldFrames = 0
-            let repCounted = false
-            let currentReferencePose: any = null
-
-            const detect = async () => {
-                if (!poseEngineRef.current || !videoRef.current) return
-
-                try {
-                    const userPoses = await poseEngineRef.current.estimate()
-
-                    // Get reference pose if available
-                    if (referencePoseEngineRef.current && referenceVideoRef.current?.readyState >= 2) {
-                        const refPoses = await referencePoseEngineRef.current.estimate()
-                        if (refPoses?.length) {
-                            currentReferencePose = refPoses[0]
-                        }
-                    }
-
-                    if (userPoses?.length) {
-                        const userPose = userPoses[0]
-
-                        // Scale keypoints
-                        const container = containerRef.current?.getBoundingClientRect() || { width: 0, height: 0 }
-                        const video = {
-                            width: videoRef.current.videoWidth || 640,
-                            height: videoRef.current.videoHeight || 480
-                        }
-
-                        const scale = Math.max(container.width / video.width, container.height / video.height)
-                        const displayedWidth = video.width * scale
-                        const displayedHeight = video.height * scale
-                        const offsetX = (displayedWidth - container.width) / 2
-                        const offsetY = (displayedHeight - container.height) / 2
-
-                        const scaledKeypoints = userPose.keypoints.map((kp: any) => ({
-                            ...kp,
-                            x: kp.x * scale - offsetX,
-                            y: kp.y * scale - offsetY
-                        }))
-
-                        // Compare poses
-                        let isCorrect = false
-                        if (currentReferencePose) {
-                            const comparison = poseAnalyzer.comparePosesWithFeedback(
-                                userPose.keypoints,
-                                currentReferencePose.keypoints
-                            )
-                            isCorrect = comparison.isCorrect
-                        } else {
-                            const analysis = poseAnalyzer.evaluate(userPose.keypoints)
-                            isCorrect = analysis.allSegmentsHit && analysis.accuracy >= 0.60
-                        }
-
-                        // Render skeleton
-                        poseRenderer.renderSimple(scaledKeypoints, isCorrect)
-
-                        // Rep counting
-                        if (isCorrect) {
-                            poseHoldFrames++
-                            if (poseHoldFrames >= 8 && !repCounted) {
-                                repCounted = true
-                            }
-                        } else {
-                            if (repCounted && poseHoldFrames > 0) {
-                                setRepCount(prev => prev + 1)
-                                repCounted = false
-                            }
-                            poseHoldFrames = 0
-                        }
-                    }
-                } catch (err) {
-                    console.error('Pose detection error:', err)
-                }
-
-                animationRef.current = requestAnimationFrame(detect)
-            }
-
             setSessionStarted(true)
             setSessionLoading(false)
-            detect()
 
         } catch (err: any) {
-            console.error('Failed to start session:', err)
-            setError(err.message || 'Failed to access camera')
+            setError('Please allow camera access to start the exercise.')
             setSessionLoading(false)
+            setIsInitializing(false)
         }
     }
 
@@ -239,11 +296,11 @@ export default function ExercisePage() {
             animationRef.current = null
         }
         if (poseEngineRef.current) {
-            await poseEngineRef.current.dispose()
+            try { await poseEngineRef.current.dispose() } catch (e) { }
             poseEngineRef.current = null
         }
         if (referencePoseEngineRef.current) {
-            await referencePoseEngineRef.current.dispose()
+            try { await referencePoseEngineRef.current.dispose() } catch (e) { }
             referencePoseEngineRef.current = null
         }
         setSessionStarted(false)
@@ -252,240 +309,107 @@ export default function ExercisePage() {
 
     const nextExercise = () => {
         if (currentIndex < assignments.length - 1) {
+            stopSession()
             setCurrentIndex(prev => prev + 1)
-            setRepCount(0)
-            // Reload reference video for new exercise
-            if (referenceVideoRef.current && assignments[currentIndex + 1]?.exercise?.video_url) {
-                referenceVideoRef.current.src = assignments[currentIndex + 1].exercise!.video_url
-                referenceVideoRef.current.load()
-                referenceVideoRef.current.play()
-            }
+            setIsInitializing(true)
         }
     }
 
     const prevExercise = () => {
         if (currentIndex > 0) {
+            stopSession()
             setCurrentIndex(prev => prev - 1)
-            setRepCount(0)
-            // Reload reference video for new exercise
-            if (referenceVideoRef.current && assignments[currentIndex - 1]?.exercise?.video_url) {
-                referenceVideoRef.current.src = assignments[currentIndex - 1].exercise!.video_url
-                referenceVideoRef.current.load()
-                referenceVideoRef.current.play()
-            }
+            setIsInitializing(true)
         }
     }
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-                <span className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></span>
+            <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-cyan-500"></div>
             </div>
         )
     }
 
     if (assignments.length === 0) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-8">
-                <div className="text-center max-w-md">
-                    <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-500">
-                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                        </svg>
-                    </div>
-                    <h1 className="text-2xl font-bold mb-4">No Exercises Assigned</h1>
-                    <p className="text-slate-400 mb-6">Your doctor hasn't assigned any exercises yet.</p>
-                    <button
-                        onClick={handleBack}
-                        className="px-6 py-3 bg-slate-800 border border-white/10 rounded-xl hover:bg-slate-700 transition-all"
-                    >
-                        ← Back to Dashboard
-                    </button>
-                </div>
+            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white p-8">
+                <h1 className="text-2xl font-bold mb-4">No Exercises Assigned</h1>
+                <button onClick={handleBack} className="px-6 py-2 bg-slate-800 rounded-xl">← Back</button>
             </div>
         )
     }
 
+    const currentTarget = assignments[currentIndex]?.reps_per_set || 10
+
     return (
         <div className="min-h-screen bg-slate-900 text-white" ref={containerRef}>
-            {/* Session View */}
             {sessionStarted ? (
-                <div className="fixed inset-0 bg-slate-900">
-                    {/* Camera Feed - Fullscreen */}
-                    <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        className="absolute inset-0 w-full h-full object-cover"
-                        style={{ transform: 'scaleX(-1)' }}
-                    />
-                    <canvas
-                        ref={canvasRef}
-                        className="absolute inset-0 w-full h-full"
-                        style={{ transform: 'scaleX(-1)' }}
-                    />
+                <div className="fixed inset-0 bg-black">
+                    <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover -scale-x-100" />
+                    <canvas ref={canvasRef} className="absolute inset-0 w-full h-full -scale-x-100" />
 
-                    {/* Reference Video - Picture in Picture */}
-                    <div className="absolute top-4 right-4 w-64 bg-slate-800/90 backdrop-blur rounded-xl overflow-hidden border border-white/10">
+                    {isInitializing && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-sm z-50">
+                            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-cyan-500 mb-4"></div>
+                            <p className="text-cyan-400 font-bold tracking-widest animate-pulse">BOOTING AI ENGINE...</p>
+                        </div>
+                    )}
+
+                    <div className="absolute top-4 right-4 w-64 bg-slate-800/90 rounded-xl overflow-hidden border border-white/10">
                         <video
                             ref={referenceVideoRef}
                             loop
                             muted
                             playsInline
+                            crossOrigin="anonymous"
                             className="w-full aspect-video object-cover"
                         />
                         <div className="p-3">
-                            <p className="text-xs text-slate-400 mb-1">Exercise Demo</p>
+                            <p className="text-xs text-slate-400">Exercise Demo</p>
                             <p className="text-sm font-semibold">{currentExercise?.name}</p>
                         </div>
                     </div>
 
-                    {/* Rep Counter */}
-                    <div className="absolute top-4 left-4 bg-emerald-500/20 backdrop-blur border border-emerald-500/30 rounded-xl p-4 text-center">
-                        <p className="text-xs font-bold text-emerald-400 tracking-wider">REPS</p>
-                        <p className="text-4xl font-bold">{repCount}</p>
-                        <p className="text-xs text-slate-400">Target: {assignments[currentIndex]?.reps_per_set || 10}</p>
+                    <div className="absolute top-4 left-4 bg-slate-900 border border-emerald-500/50 rounded-2xl p-6 text-center shadow-2xl shadow-emerald-500/20 z-10 transition-all">
+                        <p className="text-xs font-black text-emerald-400 tracking-[0.2em] mb-1">REPS</p>
+                        <p className="text-6xl font-black text-white">{repCount}</p>
+                        <p className="text-xs text-slate-400 mt-1">Goal: {currentTarget}</p>
+                        {repCount >= currentTarget && (
+                            <div className="mt-4 py-2 px-3 bg-emerald-500 text-slate-900 rounded-lg font-black text-xs animate-bounce">
+                                GOAL REACHED! 🎉
+                            </div>
+                        )}
                     </div>
 
-                    {/* Exercise Progress */}
-                    <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-800/90 backdrop-blur rounded-full px-4 py-2 flex items-center gap-2">
-                        <span className="text-cyan-400 font-semibold">{currentIndex + 1}</span>
-                        <span className="text-slate-500">/</span>
-                        <span className="text-slate-400">{assignments.length}</span>
-                    </div>
-
-                    {/* Status Indicator */}
-                    <div className="absolute bottom-24 left-4 bg-slate-800/90 backdrop-blur rounded-full px-4 py-2 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
-                        <span className="text-sm text-slate-300">Camera Active</span>
-                    </div>
-
-                    {/* Controls */}
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3">
-                        <button
-                            onClick={prevExercise}
-                            disabled={currentIndex === 0}
-                            className="px-4 py-3 bg-slate-800/80 backdrop-blur border border-white/10 rounded-xl hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                        >
-                            ← Previous
-                        </button>
-                        <button
-                            onClick={stopSession}
-                            className="px-6 py-3 bg-red-500/20 border border-red-500/40 rounded-xl text-red-400 font-semibold hover:bg-red-500/30 transition-all"
-                        >
-                            ⬛ Stop Session
-                        </button>
+                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4">
+                        <button onClick={prevExercise} disabled={currentIndex === 0} className="px-6 py-3 bg-slate-800/80 rounded-xl disabled:opacity-30">Previous</button>
+                        <button onClick={stopSession} className="px-8 py-3 bg-red-500/80 rounded-xl font-bold">STOP</button>
                         <button
                             onClick={nextExercise}
-                            disabled={currentIndex === assignments.length - 1}
-                            className="px-4 py-3 bg-slate-800/80 backdrop-blur border border-white/10 rounded-xl hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                            disabled={currentIndex === assignments.length - 1 && repCount < currentTarget}
+                            className={`px-6 py-3 rounded-xl transition-all ${repCount >= currentTarget
+                                ? 'bg-emerald-500 text-slate-900 font-bold scale-110 shadow-lg shadow-emerald-500/30'
+                                : 'bg-slate-800/80 disabled:opacity-30'
+                                }`}
                         >
-                            Next →
+                            {currentIndex === assignments.length - 1 ? 'Finish' : 'Next Exercise →'}
                         </button>
                     </div>
                 </div>
             ) : (
-                <>
-                    {/* Header */}
-                    <div className="fixed top-0 left-0 right-0 z-50 flex justify-between items-center px-6 py-4 bg-slate-900/80 backdrop-blur-xl border-b border-white/10">
-                        <button
-                            onClick={handleBack}
-                            className="flex items-center gap-2 px-4 py-2 bg-slate-800/80 border border-white/10 rounded-full text-slate-300 hover:bg-slate-700 transition-all"
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <polyline points="15 18 9 12 15 6"></polyline>
-                            </svg>
-                            Back
-                        </button>
+                <div className="flex flex-col items-center justify-center min-h-screen p-6">
+                    <div className="max-w-md w-full text-center">
+                        <h1 className="text-4xl font-bold mb-2">Ready?</h1>
+                        <p className="text-slate-400 mb-8">{currentExercise?.name}</p>
 
-                        <div className="flex items-center gap-3">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-cyan-400">
-                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                            </svg>
-                            <span className="font-bold text-lg bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">
-                                Exercise Session
-                            </span>
-                        </div>
+                        {error && <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-500 mb-6">{error}</div>}
 
-                        <button
-                            onClick={handleLogout}
-                            className="px-4 py-2 border border-white/20 rounded-full text-slate-300 hover:bg-red-500/10 hover:border-red-500 hover:text-red-400 transition-all"
-                        >
-                            Logout
+                        <button onClick={startSession} disabled={sessionLoading} className="w-full py-4 bg-cyan-500 text-slate-900 rounded-2xl font-black text-xl hover:bg-cyan-400 transition-all">
+                            {sessionLoading ? 'STARTING...' : 'START SESSION'}
                         </button>
                     </div>
-
-                    {/* Pre-session Screen */}
-                    <div className="pt-24 px-6 pb-6 min-h-screen flex flex-col items-center justify-center">
-                        <div className="text-center max-w-lg">
-                            <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-cyan-500/20 to-teal-500/20 rounded-3xl mb-8">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-cyan-400">
-                                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                                </svg>
-                            </div>
-
-                            <h1 className="text-4xl font-bold mb-4">Ready to Exercise?</h1>
-                            <p className="text-slate-400 text-lg mb-2">
-                                You have {assignments.length} exercise{assignments.length > 1 ? 's' : ''} to complete
-                            </p>
-                            <p className="text-cyan-400 mb-8">
-                                Starting with: {currentExercise?.name}
-                            </p>
-
-                            {error && (
-                                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
-                                    {error}
-                                </div>
-                            )}
-
-                            <button
-                                onClick={startSession}
-                                disabled={sessionLoading}
-                                className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-xl text-slate-900 text-lg font-bold flex items-center justify-center gap-3 mx-auto hover:shadow-lg hover:shadow-cyan-500/25 hover:-translate-y-1 transition-all disabled:opacity-60"
-                            >
-                                {sessionLoading ? (
-                                    <>
-                                        <span className="w-5 h-5 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin"></span>
-                                        Starting Camera...
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <polygon points="5,3 19,12 5,21"></polygon>
-                                        </svg>
-                                        Start Session
-                                    </>
-                                )}
-                            </button>
-
-                            {/* Exercise Queue Preview */}
-                            <div className="mt-8 p-6 bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl text-left">
-                                <h3 className="font-semibold text-cyan-400 mb-3">Exercise Queue:</h3>
-                                <div className="space-y-2">
-                                    {assignments.map((assignment, idx) => (
-                                        <div
-                                            key={assignment.id}
-                                            className={`flex items-center gap-3 p-2 rounded-lg ${idx === currentIndex ? 'bg-cyan-500/10 border border-cyan-500/30' : ''
-                                                }`}
-                                        >
-                                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${idx === currentIndex ? 'bg-cyan-500 text-slate-900' : 'bg-slate-700 text-slate-400'
-                                                }`}>
-                                                {idx + 1}
-                                            </span>
-                                            <span className={idx === currentIndex ? 'text-white' : 'text-slate-400'}>
-                                                {assignment.exercise?.name}
-                                            </span>
-                                            <span className="text-slate-500 text-sm ml-auto">
-                                                {assignment.reps_per_set} reps
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </>
+                </div>
             )}
         </div>
     )

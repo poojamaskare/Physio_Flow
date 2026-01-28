@@ -71,7 +71,7 @@ export class PoseRenderer {
   }
 
   #drawSkeleton(map, color) {
-    this.ctx.lineWidth = 5 * this.pixelRatio
+    this.ctx.lineWidth = 8 * this.pixelRatio
     this.ctx.strokeStyle = color
     this.ctx.lineCap = 'round'
     this.ctx.lineJoin = 'round'
