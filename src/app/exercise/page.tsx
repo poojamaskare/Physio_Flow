@@ -130,7 +130,7 @@ export default function ExercisePage() {
                     try {
                         const userPoses = await poseEngineRef.current.estimate()
 
-                        if (referencePoseEngineRef.current && referenceVideoRef.current?.readyState >= 2) {
+                        if (referencePoseEngineRef.current && referenceVideoRef.current && referenceVideoRef.current.readyState >= 2) {
                             const refPoses = await referencePoseEngineRef.current.estimate()
                             if (refPoses?.length) {
                                 currentReferencePose = refPoses[0]
