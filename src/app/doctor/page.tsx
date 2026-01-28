@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser, signOut, User } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
+import DoctorProgress from '@/app/components/DoctorProgress'
 
 type Tab = 'dashboard' | 'patients' | 'exercises' | 'reports'
 
@@ -681,14 +682,7 @@ export default function DoctorDashboard() {
                 {/* Reports Tab */}
                 {
                     activeTab === 'reports' && (
-                        <div>
-                            <h1 className="text-3xl font-bold mb-8">Reports</h1>
-                            <div className="p-8 bg-slate-800/80 backdrop-blur-xl border border-white/10 rounded-2xl text-center">
-                                <div className="text-6xl mb-4">📊</div>
-                                <h3 className="text-xl font-semibold mb-2">Coming Soon</h3>
-                                <p className="text-slate-400">Patient progress reports and analytics will be available here</p>
-                            </div>
-                        </div>
+                        <DoctorProgress doctorId={user?.id} />
                     )
                 }
             </main >

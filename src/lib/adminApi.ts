@@ -117,12 +117,13 @@ export async function fetchDoctors(): Promise<Doctor[]> {
 
     if (!doctors) return []
 
-    // Get patient counts
+    // Get patient counts by counting users with matching doctor_id
     const doctorsWithCounts = await Promise.all(
         doctors.map(async (doc) => {
             const { count, error } = await supabase
-                .from('assignments')
+                .from('users')
                 .select('id', { count: 'exact' })
+                .eq('role', 'patient')
                 .eq('doctor_id', doc.id)
 
             if (error) {
@@ -249,12 +250,35 @@ export async function addPatient(patient: { name: string; email: string; phone?:
 // Assign Doctor to Patient
 export async function assignDoctor(patientId: string, doctorId: string): Promise<{ success: boolean }> {
     // Update the doctor_id column on the users table
-    const { error } = await supabase
+    const { error: updateError } = await supabase
         .from('users')
         .update({ doctor_id: doctorId || null })
         .eq('id', patientId)
 
-    return { success: !error }
+    if (updateError) {
+        console.error('Error updating user doctor_id:', updateError)
+        return { success: false }
+    }
+
+    // Remove any existing assignment for this patient
+    await supabase
+        .from('assignments')
+        .delete()
+        .eq('patient_id', patientId)
+
+    // Create new assignment if doctor is selected
+    if (doctorId) {
+        const { error: assignError } = await supabase.from('assignments').insert({
+            doctor_id: doctorId,
+            patient_id: patientId
+        })
+
+        if (assignError) {
+            console.error('Error creating assignment:', assignError)
+        }
+    }
+
+    return { success: true }
 }
 
 // Delete Patient

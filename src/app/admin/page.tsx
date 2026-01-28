@@ -17,6 +17,7 @@ export default function AdminDashboard() {
     const [user, setUser] = useState<User | null>(null)
     const [loading, setLoading] = useState(true)
     const [activeTab, setActiveTab] = useState<Tab>('dashboard')
+    const [sidebarOpen, setSidebarOpen] = useState(false)
 
     // Dashboard state
     const [stats, setStats] = useState<DashboardStats>({ totalDoctors: 0, totalPatients: 0, totalSessions: 0, activeUsers: 0 })
@@ -122,73 +123,103 @@ export default function AdminDashboard() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+            <div className="min-h-screen flex items-center justify-center bg-[#0f172a] text-white">
                 <span className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></span>
             </div>
         )
     }
 
-    const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-        { id: 'dashboard', label: 'Dashboard', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> },
-        { id: 'doctors', label: 'Doctors', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> },
-        { id: 'patients', label: 'Patients', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> },
-        { id: 'reports', label: 'Reports', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 20V10M12 20V4M6 20v-6"></path></svg> },
+    const tabs: { id: Tab; label: string; icon: string }[] = [
+        { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+        { id: 'doctors', label: 'Doctors', icon: '👨‍⚕️' },
+        { id: 'patients', label: 'Patients', icon: '👥' },
+        { id: 'reports', label: 'Reports', icon: '📈' },
     ]
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex">
+        <div className="min-h-screen bg-[#0f172a] text-white font-sans transition-colors duration-300">
+            {/* Mobile Menu Button */}
+            <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-slate-800 text-white shadow-lg"
+            >
+                {sidebarOpen ? (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                ) : (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                )}
+            </button>
+
             {/* Sidebar */}
-            <aside className="w-64 bg-slate-800/50 backdrop-blur-xl border-r border-white/10 flex flex-col">
-                <div className="p-6 border-b border-white/10">
+            <aside className={`fixed top-0 left-0 h-full w-64 bg-[#1e293b] shadow-xl z-40 transform transition-transform duration-300 flex flex-col ${
+                sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            } lg:translate-x-0 border-r border-slate-700/50`}>
+                {/* Header - PhysioFlow Branding */}
+                <div className="p-6 border-b border-slate-700/50">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-400 flex items-center justify-center">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                            </svg>
-                        </div>
-                        <span className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">
-                            PhysioFlow
-                        </span>
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" strokeWidth="2.5">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                        </svg>
+                        <span className="text-xl font-bold text-cyan-400">PhysioFlow</span>
                     </div>
                 </div>
 
-                <nav className="flex-1 p-4 space-y-2">
+                {/* Navigation */}
+                <nav className="flex-1 p-4 space-y-1">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === tab.id
-                                ? 'bg-gradient-to-r from-cyan-500/20 to-teal-500/20 text-cyan-400 border border-cyan-500/30'
-                                : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                            onClick={() => {
+                                setActiveTab(tab.id)
+                                setSidebarOpen(false)
+                            }}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === tab.id
+                                ? 'bg-cyan-500/20 text-cyan-400'
+                                : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
                                 }`}
                         >
-                            {tab.icon}
+                            <span className="text-lg">{tab.icon}</span>
                             <span className="font-medium">{tab.label}</span>
                         </button>
                     ))}
                 </nav>
 
-                <div className="p-4 border-t border-white/10">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold">
+                {/* User Section at Bottom */}
+                <div className="p-4 border-t border-slate-700/50">
+                    {/* User Info */}
+                    <div className="flex items-center gap-3 mb-3 px-2">
+                        <div className="w-10 h-10 rounded-full bg-teal-500 flex items-center justify-center text-white font-bold text-sm">
                             {user?.name?.charAt(0).toUpperCase()}
                         </div>
-                        <div>
-                            <p className="font-medium text-sm">{user?.name}</p>
-                            <p className="text-xs text-amber-400">Admin</p>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm text-white truncate">{user?.name}</p>
+                            <p className="text-xs text-slate-400">Admin</p>
                         </div>
                     </div>
+                    
+                    {/* Logout Button */}
                     <button
                         onClick={handleLogout}
-                        className="w-full py-2 text-sm text-slate-400 hover:text-red-400 transition-colors"
+                        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-200"
                     >
-                        Logout
+                        <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-white font-bold text-xs">
+                            N
+                        </div>
+                        <span className="font-medium">Logout</span>
                     </button>
                 </div>
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 p-8 overflow-auto">
+            <main className="lg:ml-64 p-4 lg:p-8 pt-20 lg:pt-8 min-h-screen">
+                <div className="max-w-7xl mx-auto space-y-6">
                 {/* Dashboard Tab */}
                 {activeTab === 'dashboard' && (
                     <div>
@@ -205,7 +236,7 @@ export default function AdminDashboard() {
                         {/* Charts */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {/* Patient Growth Chart */}
-                            <div className="bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+                            <div className="bg-[#1e293b] border border-slate-800 rounded-2xl p-6">
                                 <h3 className="text-lg font-semibold mb-6">Patient Growth (Last 7 Days)</h3>
                                 <div className="h-48 flex items-end justify-between gap-2">
                                     {patientGrowth.map((day, i) => (
@@ -221,7 +252,7 @@ export default function AdminDashboard() {
                             </div>
 
                             {/* Top Doctors Chart */}
-                            <div className="bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+                            <div className="bg-[#1e293b] border border-slate-800 rounded-2xl p-6">
                                 <h3 className="text-lg font-semibold mb-6">Top Doctors (By Patients)</h3>
                                 <div className="space-y-4">
                                     {topDoctors.length > 0 ? topDoctors.map((doc, i) => (
@@ -267,9 +298,9 @@ export default function AdminDashboard() {
                         </div>
 
                         {/* Doctors Table */}
-                        <div className="bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
+                        <div className="bg-[#1e293b] border border-slate-800 rounded-2xl overflow-hidden">
                             <table className="w-full">
-                                <thead className="bg-slate-700/50">
+                                <thead className="bg-slate-800/50">
                                     <tr>
                                         <th className="text-left px-6 py-4 font-semibold">Name</th>
                                         <th className="text-left px-6 py-4 font-semibold">Specialization</th>
@@ -280,7 +311,7 @@ export default function AdminDashboard() {
                                 </thead>
                                 <tbody>
                                     {doctors.length > 0 ? doctors.map(doc => (
-                                        <tr key={doc.id} className="border-t border-white/5 hover:bg-white/5">
+                                        <tr key={doc.id} className="border-t border-slate-800 hover:bg-slate-800/30">
                                             <td className="px-6 py-4">
                                                 <div>
                                                     <p className="font-medium">{doc.name}</p>
@@ -328,35 +359,35 @@ export default function AdminDashboard() {
                                         placeholder="Full Name"
                                         value={doctorForm.name}
                                         onChange={e => setDoctorForm({ ...doctorForm, name: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-700/50 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500"
+                                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl focus:outline-none focus:border-cyan-500"
                                     />
                                     <input
                                         type="email"
                                         placeholder="Email"
                                         value={doctorForm.email}
                                         onChange={e => setDoctorForm({ ...doctorForm, email: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-700/50 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500"
+                                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl focus:outline-none focus:border-cyan-500"
                                     />
                                     <input
                                         type="tel"
                                         placeholder="Phone (optional)"
                                         value={doctorForm.phone}
                                         onChange={e => setDoctorForm({ ...doctorForm, phone: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-700/50 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500"
+                                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl focus:outline-none focus:border-cyan-500"
                                     />
                                     <input
                                         type="text"
                                         placeholder="Specialization"
                                         value={doctorForm.specialization}
                                         onChange={e => setDoctorForm({ ...doctorForm, specialization: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-700/50 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500"
+                                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl focus:outline-none focus:border-cyan-500"
                                     />
                                     <input
                                         type="password"
                                         placeholder="Password"
                                         value={doctorForm.password}
                                         onChange={e => setDoctorForm({ ...doctorForm, password: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-700/50 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500"
+                                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl focus:outline-none focus:border-cyan-500"
                                     />
                                     <button
                                         onClick={handleAddDoctor}
@@ -390,7 +421,7 @@ export default function AdminDashboard() {
                         {/* Patient Cards Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {patients.length > 0 ? patients.map(patient => (
-                                <div key={patient.id} className="bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:border-cyan-500/30 transition-all">
+                                <div key={patient.id} className="bg-[#1e293b] border border-slate-800 rounded-2xl p-6 hover:border-cyan-500/30 transition-all">
                                     <div className="flex items-start justify-between mb-4">
                                         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-500/20 to-cyan-500/20 flex items-center justify-center text-xl">
                                             👤
@@ -419,7 +450,7 @@ export default function AdminDashboard() {
                                             <select
                                                 value={patient.doctor_id || ''}
                                                 onChange={e => handleAssignDoctor(patient.id, e.target.value)}
-                                                className="flex-1 px-3 py-1.5 bg-slate-700/50 border border-white/10 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
+                                                className="flex-1 px-3 py-1.5 bg-slate-700/50 border border-slate-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
                                             >
                                                 <option value="">Unassigned</option>
                                                 {doctors.map(doc => (
@@ -429,7 +460,7 @@ export default function AdminDashboard() {
                                         </div>
                                     </div>
 
-                                    <div className="mt-4 pt-4 border-t border-white/10">
+                                    <div className="mt-4 pt-4 border-t border-slate-800">
                                         <p className="text-xs text-slate-500">
                                             Joined: {patient.created_at ? new Date(patient.created_at).toLocaleDateString() : 'Unknown'}
                                         </p>
@@ -451,33 +482,33 @@ export default function AdminDashboard() {
                                         placeholder="Full Name"
                                         value={patientForm.name}
                                         onChange={e => setPatientForm({ ...patientForm, name: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-700/50 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500"
+                                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl focus:outline-none focus:border-cyan-500"
                                     />
                                     <input
                                         type="email"
                                         placeholder="Email"
                                         value={patientForm.email}
                                         onChange={e => setPatientForm({ ...patientForm, email: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-700/50 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500"
+                                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl focus:outline-none focus:border-cyan-500"
                                     />
                                     <input
                                         type="tel"
                                         placeholder="Phone (optional)"
                                         value={patientForm.phone}
                                         onChange={e => setPatientForm({ ...patientForm, phone: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-700/50 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500"
+                                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl focus:outline-none focus:border-cyan-500"
                                     />
                                     <input
                                         type="password"
                                         placeholder="Password"
                                         value={patientForm.password}
                                         onChange={e => setPatientForm({ ...patientForm, password: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-700/50 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500"
+                                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl focus:outline-none focus:border-cyan-500"
                                     />
                                     <select
                                         value={patientForm.doctor_id}
                                         onChange={e => setPatientForm({ ...patientForm, doctor_id: e.target.value })}
-                                        className="w-full px-4 py-3 bg-slate-700/50 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500"
+                                        className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl focus:outline-none focus:border-cyan-500"
                                     >
                                         <option value="">Assign Doctor (optional)</option>
                                         {doctors.map(doc => (
@@ -503,7 +534,7 @@ export default function AdminDashboard() {
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                             {/* Weekly Stats */}
-                            <div className="bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+                            <div className="bg-[#1e293b] border border-slate-800 rounded-2xl p-6">
                                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                                     <span>📊</span> Weekly Summary
                                 </h3>
@@ -524,7 +555,7 @@ export default function AdminDashboard() {
                             </div>
 
                             {/* Quick Stats */}
-                            <div className="bg-gradient-to-br from-cyan-500/10 to-teal-500/10 backdrop-blur-xl border border-cyan-500/20 rounded-2xl p-6">
+                            <div className="bg-gradient-to-br from-cyan-500/10 to-teal-500/10 border border-cyan-500/20 rounded-2xl p-6">
                                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                                     <span>🎯</span> Total Patients
                                 </h3>
@@ -535,7 +566,7 @@ export default function AdminDashboard() {
                             </div>
 
                             {/* Growth Indicator */}
-                            <div className="bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+                            <div className="bg-[#1e293b] border border-slate-800 rounded-2xl p-6">
                                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                                     <span>📈</span> Growth
                                 </h3>
@@ -555,14 +586,14 @@ export default function AdminDashboard() {
                         </div>
 
                         {/* Doctor Performance */}
-                        <div className="bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+                        <div className="bg-[#1e293b] border border-slate-800 rounded-2xl p-6">
                             <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
                                 <span>👨‍⚕️</span> Doctor Performance
                             </h3>
                             <div className="overflow-x-auto">
                                 <table className="w-full">
                                     <thead>
-                                        <tr className="text-left text-slate-400 border-b border-white/10">
+                                        <tr className="text-left text-slate-400 border-b border-slate-800">
                                             <th className="pb-4">Doctor</th>
                                             <th className="pb-4">Patients</th>
                                             <th className="pb-4">Sessions</th>
@@ -571,7 +602,7 @@ export default function AdminDashboard() {
                                     </thead>
                                     <tbody>
                                         {reportsData?.doctorPerformance?.map((doc: any, i: number) => (
-                                            <tr key={i} className="border-b border-white/5">
+                                            <tr key={i} className="border-b border-slate-800/50">
                                                 <td className="py-4 font-medium">{doc.name}</td>
                                                 <td className="py-4 text-cyan-400">{doc.patients}</td>
                                                 <td className="py-4 text-teal-400">{doc.sessions}</td>
@@ -592,6 +623,7 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 )}
+                </div>
             </main>
         </div>
     )
@@ -624,10 +656,10 @@ function StatCard({ icon, label, value, color }: { icon: string; label: string; 
 function Modal({ children, onClose, title }: { children: React.ReactNode; onClose: () => void; title: string }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-slate-800 border border-white/10 rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="bg-[#1e293b] border border-slate-800 rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold">{title}</h2>
-                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg">
+                    <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
