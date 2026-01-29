@@ -25,6 +25,7 @@ interface PatientExercise {
     sets: number
     notes: string
     status: string
+    completed?: boolean
     exercise?: Exercise
 }
 
@@ -79,7 +80,7 @@ function PatientDashboardContent() {
         setAssignments(exercises)
 
         // Calculate progress
-        const completed = exercises.filter(e => e.status === 'completed').length
+        const completed = exercises.filter(e => e.status === 'completed' || e.completed).length
         setProgress({
             completed,
             total: exercises.length
@@ -131,7 +132,7 @@ function PatientDashboardContent() {
         )
     }
 
-    const pendingExercises = assignments.filter(e => e.status !== 'completed').length
+    const pendingExercises = assignments.filter(e => e.status !== 'completed' && !e.completed).length
     const progressPercentage = progress.total ? Math.round((progress.completed / progress.total) * 100) : 0
 
     // Render helper for the main dashboard view
@@ -256,17 +257,17 @@ function PatientDashboardContent() {
                             {assignments.map((assignment, i) => (
                                 <div key={assignment.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-white/5 hover:border-cyan-500/20 transition-colors">
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-2 h-12 rounded-full ${assignment.status === 'completed' ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}></div>
+                                        <div className={`w-2 h-12 rounded-full ${assignment.status === 'completed' || assignment.completed ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}></div>
                                         <div>
                                             <p className="font-semibold text-slate-900 dark:text-white">{assignment.exercise?.name}</p>
                                             <p className="text-xs text-slate-500">{assignment.sets} sets • {assignment.reps_per_set} reps</p>
                                         </div>
                                     </div>
-                                    <span className={`px-3 py-1 rounded-lg text-xs font-bold ${assignment.status === 'completed'
+                                    <span className={`px-3 py-1 rounded-lg text-xs font-bold ${assignment.status === 'completed' || assignment.completed
                                             ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400'
                                             : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
                                         }`}>
-                                        {assignment.status === 'completed' ? 'Completed' : 'Pending'}
+                                        {assignment.status === 'completed' || assignment.completed ? 'Completed' : 'Pending'}
                                     </span>
                                 </div>
                             ))}

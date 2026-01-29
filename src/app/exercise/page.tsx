@@ -342,6 +342,7 @@ export default function ExercisePage() {
             .from('patient_exercises')
             .update({
                 completed: true,
+                status: 'completed',
                 completed_at: new Date().toISOString()
             })
             .eq('id', assignment.id)
