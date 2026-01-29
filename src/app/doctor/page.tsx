@@ -339,7 +339,7 @@ export default function DoctorDashboard() {
     const saveDietPlan = async () => {
         if (!selectedPatient) return
         setSavingDiet(true)
-        
+
         const { error } = await supabase
             .from('users')
             .update({ diet_plan: dietPlanContent })
@@ -349,7 +349,7 @@ export default function DoctorDashboard() {
             setShowAssignDiet(false)
             setDietPlanContent('')
             setSelectedPatient(null)
-            fetchData() 
+            fetchData()
         } else {
             console.error('Error saving diet plan:', error)
         }
@@ -743,7 +743,7 @@ Dinner:
                                                         {patientAssignments.slice(0, 3).map(assignment => (
                                                             <span key={assignment.id} className="flex items-center gap-1.5 px-2 py-1 text-xs bg-teal-500/20 border border-teal-500/30 rounded text-teal-300">
                                                                 {getExerciseName(assignment.exercise_id)}
-                                                                <button 
+                                                                <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation()
                                                                         removeAssignment(assignment.id)
@@ -785,7 +785,7 @@ Dinner:
                                                 <button
                                                     onClick={() => {
                                                         setSelectedPatient(patient)
-                                                        setDietPlanContent(patient.diet_plan || '') 
+                                                        setDietPlanContent(patient.diet_plan || '')
                                                         setShowAssignDiet(true)
                                                     }}
                                                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center justify-center"
@@ -1054,21 +1054,65 @@ Dinner:
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium mb-2">Sets</label>
-                                        <input
-                                            type="number"
-                                            value={assignForm.sets}
-                                            onChange={e => setAssignForm({ ...assignForm, sets: parseInt(e.target.value) })}
-                                            className="w-full px-4 py-3 bg-slate-700 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500"
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                value={assignForm.sets}
+                                                onChange={e => {
+                                                    const val = parseInt(e.target.value)
+                                                    setAssignForm({ ...assignForm, sets: isNaN(val) ? 1 : Math.max(1, val) })
+                                                }}
+                                                className="w-full px-4 py-3 pr-12 bg-slate-700 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500 text-center text-lg font-bold"
+                                                min="1"
+                                            />
+                                            <div className="absolute right-1 top-1 bottom-1 flex flex-col">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAssignForm({ ...assignForm, sets: assignForm.sets + 1 })}
+                                                    className="flex-1 px-2 bg-slate-600 hover:bg-cyan-500 rounded-t-lg flex items-center justify-center text-xs transition-colors"
+                                                >
+                                                    ▲
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAssignForm({ ...assignForm, sets: Math.max(1, assignForm.sets - 1) })}
+                                                    className="flex-1 px-2 bg-slate-600 hover:bg-cyan-500 rounded-b-lg flex items-center justify-center text-xs transition-colors border-t border-slate-500"
+                                                >
+                                                    ▼
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium mb-2">Reps per Set</label>
-                                        <input
-                                            type="number"
-                                            value={assignForm.reps_per_set}
-                                            onChange={e => setAssignForm({ ...assignForm, reps_per_set: parseInt(e.target.value) })}
-                                            className="w-full px-4 py-3 bg-slate-700 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500"
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                value={assignForm.reps_per_set}
+                                                onChange={e => {
+                                                    const val = parseInt(e.target.value)
+                                                    setAssignForm({ ...assignForm, reps_per_set: isNaN(val) ? 1 : Math.max(1, val) })
+                                                }}
+                                                className="w-full px-4 py-3 pr-12 bg-slate-700 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500 text-center text-lg font-bold"
+                                                min="1"
+                                            />
+                                            <div className="absolute right-1 top-1 bottom-1 flex flex-col">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAssignForm({ ...assignForm, reps_per_set: assignForm.reps_per_set + 1 })}
+                                                    className="flex-1 px-2 bg-slate-600 hover:bg-cyan-500 rounded-t-lg flex items-center justify-center text-xs transition-colors"
+                                                >
+                                                    ▲
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAssignForm({ ...assignForm, reps_per_set: Math.max(1, assignForm.reps_per_set - 1) })}
+                                                    className="flex-1 px-2 bg-slate-600 hover:bg-cyan-500 rounded-b-lg flex items-center justify-center text-xs transition-colors border-t border-slate-500"
+                                                >
+                                                    ▼
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div>
@@ -1119,7 +1163,7 @@ Dinner:
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center mb-2">
                                     <label className="block text-sm font-medium">Diet Details</label>
-                                    <button 
+                                    <button
                                         onClick={() => setDietPlanContent(indianDietTemplate)}
                                         className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
                                     >
@@ -1162,7 +1206,7 @@ Dinner:
                                 <h2 className="text-2xl font-bold flex items-center gap-2">
                                     <span className="text-3xl">📋</span> {selectedPatient.name}'s Exercises
                                 </h2>
-                                <button 
+                                <button
                                     onClick={() => setShowViewAllAssignments(false)}
                                     className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                                 >
@@ -1188,15 +1232,14 @@ Dinner:
                                             <div className="flex items-start justify-between gap-3 mb-2">
                                                 <div>
                                                     <h3 className="font-semibold text-lg">{exercise.name}</h3>
-                                                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                                        exercise.difficulty === 'easy' ? 'bg-green-500/20 text-green-400' :
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full ${exercise.difficulty === 'easy' ? 'bg-green-500/20 text-green-400' :
                                                         exercise.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                        'bg-red-500/20 text-red-400'
-                                                    }`}>
+                                                            'bg-red-500/20 text-red-400'
+                                                        }`}>
                                                         {exercise.difficulty}
                                                     </span>
                                                 </div>
-                                                <button 
+                                                <button
                                                     onClick={() => removeAssignment(assignment.id)}
                                                     className="p-2 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition-colors"
                                                     title="Remove assignment"

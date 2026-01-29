@@ -22,6 +22,8 @@ interface PatientExercise {
     sets: number
     notes: string
     status: string
+    completed?: boolean
+    completed_at?: string
     exercise?: Exercise
 }
 
@@ -36,6 +38,9 @@ export default function ExercisePage() {
     const [isInitializing, setIsInitializing] = useState(false)
     const [error, setError] = useState('')
     const [repCount, setRepCount] = useState(0)
+    const [currentSet, setCurrentSet] = useState(1)
+    const [setCompleteMessage, setSetCompleteMessage] = useState('')
+    const [exerciseCompleted, setExerciseCompleted] = useState(false)
 
     const containerRef = useRef<HTMLDivElement>(null)
     const videoRef = useRef<HTMLVideoElement>(null)
@@ -59,19 +64,34 @@ export default function ExercisePage() {
         }
     }, [user])
 
-    // Auto-stop session when goal is reached
+    // Handle set completion - don't stop until all sets are done
     useEffect(() => {
         if (sessionStarted && repCount > 0) {
             const targetReps = assignments[currentIndex]?.reps_per_set || 10
+            const totalSets = assignments[currentIndex]?.sets || 3
+
             if (repCount >= targetReps) {
-                // Delay a bit to show celebration, then stop
-                const timer = setTimeout(() => {
-                    stopSession()
-                }, 2000)
-                return () => clearTimeout(timer)
+                if (currentSet < totalSets) {
+                    // Set complete, but more sets to go
+                    setSetCompleteMessage(`Set ${currentSet} Complete! 🎉`)
+                    setTimeout(() => {
+                        setCurrentSet(prev => prev + 1)
+                        setRepCount(0)
+                        setSetCompleteMessage('')
+                    }, 2000)
+                } else {
+                    // All sets complete!
+                    setExerciseCompleted(true)
+                    setSetCompleteMessage(`All ${totalSets} Sets Complete! 🏆`)
+                    // Mark exercise as completed in database
+                    markExerciseComplete()
+                    setTimeout(() => {
+                        stopSession()
+                    }, 3000)
+                }
             }
         }
-    }, [repCount, sessionStarted, currentIndex, assignments])
+    }, [repCount, sessionStarted, currentIndex, assignments, currentSet])
 
     useEffect(() => {
         let mounted = true
@@ -313,12 +333,35 @@ export default function ExercisePage() {
         router.push('/login')
     }
 
+    // Mark exercise as completed in database
+    const markExerciseComplete = async () => {
+        const assignment = assignments[currentIndex]
+        if (!assignment) return
+
+        await supabase
+            .from('patient_exercises')
+            .update({
+                completed: true,
+                completed_at: new Date().toISOString()
+            })
+            .eq('id', assignment.id)
+
+        // Refresh assignments to show updated status
+        fetchAssignments()
+    }
+
     const currentExercise = assignments[currentIndex]?.exercise
 
     const startSession = async (index?: number) => {
         if (typeof index === 'number') {
             setCurrentIndex(index)
         }
+
+        // Reset states for new session
+        setRepCount(0)
+        setCurrentSet(1)
+        setSetCompleteMessage('')
+        setExerciseCompleted(false)
 
         setSessionLoading(true)
         setError('')
@@ -403,11 +446,11 @@ export default function ExercisePage() {
                     {isInitializing && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm z-50">
                             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-cyan-500 mb-4"></div>
-                            <p className="text-cyan-400 font-bold tracking-widest animate-pulse">BOOTING AI ENGINE...</p>
+                            <p className="text-cyan-400 font-bold tracking-widest animate-pulse">Get ready for your exercise...</p>
                         </div>
                     )}
 
-                    <div className="absolute top-4 right-4 w-64 bg-slate-800/90 rounded-xl overflow-hidden border border-white/10">
+                    <div className="absolute top-4 right-4 w-96 bg-slate-800/90 rounded-xl overflow-hidden border border-white/10">
                         <video
                             ref={referenceVideoRef}
                             loop
@@ -416,13 +459,13 @@ export default function ExercisePage() {
                             crossOrigin="anonymous"
                             className="w-full aspect-video object-contain bg-black"
                         />
-                        <div className="p-3">
-                            <p className="text-xs text-slate-400">Exercise Demo</p>
-                            <p className="text-sm font-semibold">{currentExercise?.name}</p>
+                        <div className="p-2 text-center">
+                            <p className="text-sm text-slate-300 font-semibold">Exercise Demo</p>
                         </div>
                     </div>
 
                     <div className="absolute top-4 left-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-emerald-500/50 rounded-2xl p-6 text-center shadow-2xl dark:shadow-emerald-500/20 z-10 transition-all">
+                        <p className="text-xs font-black text-cyan-400 tracking-[0.2em] mb-1">SET {currentSet} / {assignments[currentIndex]?.sets || 3}</p>
                         <p className="text-xs font-black text-emerald-400 tracking-[0.2em] mb-1">REPS</p>
                         <p className="text-6xl font-black text-slate-900 dark:text-white">{repCount}</p>
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Goal: {currentTarget}</p>
@@ -432,6 +475,21 @@ export default function ExercisePage() {
                             </div>
                         )}
                     </div>
+
+                    {/* Set Complete Message Overlay */}
+                    {setCompleteMessage && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-40">
+                            <div className={`text-center px-8 py-6 rounded-2xl border ${exerciseCompleted ? 'bg-emerald-500/20 border-emerald-500/50' : 'bg-slate-800/90 border-cyan-500/30'}`}>
+                                <p className={`text-2xl font-semibold mb-2 ${exerciseCompleted ? 'text-emerald-400' : 'text-white'}`}>{setCompleteMessage}</p>
+                                {!exerciseCompleted && (
+                                    <p className="text-sm text-slate-400">Preparing Set {currentSet + 1}...</p>
+                                )}
+                                {exerciseCompleted && (
+                                    <p className="text-sm text-emerald-300/80">Exercise complete!</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4">
                         <button onClick={prevExercise} disabled={currentIndex === 0} className="px-6 py-3 bg-slate-800/80 text-white rounded-xl disabled:opacity-30 hover:bg-slate-700">Previous</button>
@@ -461,14 +519,31 @@ export default function ExercisePage() {
                                 {assignments.map((assignment, index) => (
                                     <div
                                         key={assignment.id}
-                                        className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-white/5 flex items-center justify-between group hover:border-cyan-500/30 transition-all"
+                                        className={`bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border flex items-center justify-between group transition-all ${assignment.completed
+                                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                                            : 'border-slate-200 dark:border-white/5 hover:border-cyan-500/30'
+                                            }`}
                                     >
                                         <div className="flex items-center gap-6">
-                                            <div className="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-500 font-bold text-lg group-hover:bg-cyan-500 group-hover:text-white transition-all">
-                                                {index + 1}
+                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg transition-all ${assignment.completed
+                                                ? 'bg-emerald-500 text-white'
+                                                : 'bg-cyan-500/10 text-cyan-500 group-hover:bg-cyan-500 group-hover:text-white'
+                                                }`}>
+                                                {assignment.completed ? (
+                                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                                    </svg>
+                                                ) : (
+                                                    index + 1
+                                                )}
                                             </div>
                                             <div>
-                                                <h3 className="font-bold text-lg mb-1">{assignment.exercise?.name}</h3>
+                                                <h3 className="font-bold text-lg mb-1">
+                                                    {assignment.exercise?.name}
+                                                    {assignment.completed && (
+                                                        <span className="ml-2 text-sm text-emerald-500 font-normal">✓ Completed</span>
+                                                    )}
+                                                </h3>
                                                 <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
                                                     <span className="flex items-center gap-1">
                                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M2 12h20"></path></svg>
@@ -490,9 +565,12 @@ export default function ExercisePage() {
 
                                         <button
                                             onClick={() => startSession(index)}
-                                            className="px-6 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-semibold hover:opacity-90 transition-opacity"
+                                            className={`px-6 py-2 rounded-lg font-semibold transition-opacity ${assignment.completed
+                                                ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                                : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90'
+                                                }`}
                                         >
-                                            Start
+                                            {assignment.completed ? 'Redo' : 'Start'}
                                         </button>
                                     </div>
                                 ))}

@@ -107,16 +107,18 @@ export function extractAngles(landmarks: Record<string, Landmark>): Record<strin
 
 /**
  * Identify distinct phases from keyframes based on angle extremes
+ * Now tracks ALL angles that change significantly
  */
 export function identifyPhases(keyframes: KeyframeData[]): PhaseDefinition[] {
     if (keyframes.length === 0) return []
 
     const phases: PhaseDefinition[] = []
-
-    // Find the most varying angle (the one that changes most)
     const angleNames = Object.keys(keyframes[0]?.angles || {})
-    let maxVariance = 0
-    let primaryAngle = angleNames[0] || 'left_elbow'
+
+    // Find ALL angles that change significantly (more than 20 degrees)
+    const SIGNIFICANT_CHANGE_THRESHOLD = 20
+    const activeAngles: string[] = []
+    const angleStats: Record<string, { min: number, max: number, minFrame: KeyframeData, maxFrame: KeyframeData }> = {}
 
     for (const angleName of angleNames) {
         const values = keyframes.map(kf => kf.angles[angleName]).filter(v => v !== undefined)
@@ -124,59 +126,101 @@ export function identifyPhases(keyframes: KeyframeData[]): PhaseDefinition[] {
             const min = Math.min(...values)
             const max = Math.max(...values)
             const variance = max - min
-            if (variance > maxVariance) {
-                maxVariance = variance
+
+            // Find the frames with min and max values
+            let minFrame = keyframes[0]
+            let maxFrame = keyframes[0]
+            for (const kf of keyframes) {
+                if (kf.angles[angleName] === min) minFrame = kf
+                if (kf.angles[angleName] === max) maxFrame = kf
+            }
+
+            angleStats[angleName] = { min, max, minFrame, maxFrame }
+
+            // Mark as active if it changes significantly
+            if (variance > SIGNIFICANT_CHANGE_THRESHOLD) {
+                activeAngles.push(angleName)
+                console.log(`Active angle: ${angleName} (range: ${min}° - ${max}°, variance: ${variance}°)`)
+            }
+        }
+    }
+
+    // If no active angles found, use the one with most variance
+    if (activeAngles.length === 0) {
+        let maxVariance = 0
+        let primaryAngle = angleNames[0] || 'left_elbow'
+        for (const angleName of angleNames) {
+            const stats = angleStats[angleName]
+            if (stats && stats.max - stats.min > maxVariance) {
+                maxVariance = stats.max - stats.min
                 primaryAngle = angleName
             }
         }
+        activeAngles.push(primaryAngle)
+        console.log(`No significant movement detected. Using primary angle: ${primaryAngle}`)
     }
 
-    // Find min and max positions for the primary angle
-    let minFrame = keyframes[0]
-    let maxFrame = keyframes[0]
-    let minAngle = keyframes[0]?.angles[primaryAngle] ?? 180
-    let maxAngle = keyframes[0]?.angles[primaryAngle] ?? 0
+    console.log(`Total active angles for this exercise: ${activeAngles.length}`, activeAngles)
 
-    for (const kf of keyframes) {
-        const angle = kf.angles[primaryAngle]
-        if (angle !== undefined) {
-            if (angle < minAngle) {
-                minAngle = angle
-                minFrame = kf
-            }
-            if (angle > maxAngle) {
-                maxAngle = angle
-                maxFrame = kf
-            }
+    // Find the primary angle (most variance) to determine phase timing
+    let maxVariance = 0
+    let primaryAngle = activeAngles[0]
+    for (const angleName of activeAngles) {
+        const stats = angleStats[angleName]
+        if (stats && stats.max - stats.min > maxVariance) {
+            maxVariance = stats.max - stats.min
+            primaryAngle = angleName
         }
     }
 
-    // Determine which is "start" and which is "peak"
-    // Usually start position has more extended limbs (higher angles)
-    if (minFrame.timestamp < maxFrame.timestamp) {
+    const primaryStats = angleStats[primaryAngle]
+    if (!primaryStats) return []
+
+    // Create phases with ALL active angles included
+    // Start phase = position at min angle of primary
+    // Peak phase = position at max angle of primary
+    const startFrame = primaryStats.minFrame
+    const peakFrame = primaryStats.maxFrame
+
+    // Build angle requirements for each phase including ONLY the active angles
+    const startAngles: Record<string, number> = {}
+    const peakAngles: Record<string, number> = {}
+
+    for (const angleName of activeAngles) {
+        if (startFrame.angles[angleName] !== undefined) {
+            startAngles[angleName] = startFrame.angles[angleName]
+        }
+        if (peakFrame.angles[angleName] !== undefined) {
+            peakAngles[angleName] = peakFrame.angles[angleName]
+        }
+    }
+
+    // Determine order based on timestamp
+    if (startFrame.timestamp < peakFrame.timestamp) {
         phases.push({
             name: 'start',
-            angles: minFrame.angles,
-            timestamp: minFrame.timestamp
+            angles: startAngles,
+            timestamp: startFrame.timestamp
         })
         phases.push({
             name: 'peak',
-            angles: maxFrame.angles,
-            timestamp: maxFrame.timestamp
+            angles: peakAngles,
+            timestamp: peakFrame.timestamp
         })
     } else {
         phases.push({
             name: 'start',
-            angles: maxFrame.angles,
-            timestamp: maxFrame.timestamp
+            angles: peakAngles,
+            timestamp: peakFrame.timestamp
         })
         phases.push({
             name: 'peak',
-            angles: minFrame.angles,
-            timestamp: minFrame.timestamp
+            angles: startAngles,
+            timestamp: startFrame.timestamp
         })
     }
 
+    console.log('Generated phases with active angles:', phases)
     return phases
 }
 
@@ -196,24 +240,24 @@ export async function extractTemplateFromVideo(
     await tf.ready()
     await tf.setBackend('webgl')
 
-    // Create detector
+    // Create detector - Use LIGHTNING for 3x faster processing
     const detector = await poseDetection.createDetector(
         poseDetection.SupportedModels.MoveNet,
         {
-            modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER,
-            enableSmoothing: true
+            modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING, // FAST model
+            enableSmoothing: false // Disable for speed
         }
     )
 
     const keyframes: KeyframeData[] = []
     const duration = videoElement.duration
 
-    // OPTIMIZE: Limit to maximum 10 samples for fast processing
-    const maxSamples = 10
+    // OPTIMIZE: Only 6 samples for fast processing (start, middle, end positions)
+    const maxSamples = 6
     const actualInterval = Math.max(sampleIntervalMs, (duration * 1000) / maxSamples)
     const numSamples = Math.min(maxSamples, Math.floor((duration * 1000) / actualInterval))
 
-    console.log(`Sampling ${numSamples} frames from ${duration.toFixed(1)}s video (every ${(actualInterval / 1000).toFixed(1)}s)`)
+    console.log(`⚡ Fast extraction: ${numSamples} frames from ${duration.toFixed(1)}s video`)
 
     // Sample video at regular intervals
     for (let i = 0; i <= numSamples; i++) {
@@ -355,6 +399,7 @@ export async function loadTemplateFromDatabase(
 /**
  * Compare user's current angles to template phases
  * Returns the best matching phase and similarity score
+ * Now requires ALL angles to match for multi-body-part exercises
  */
 export function matchPoseToPhase(
     userAngles: Record<string, number>,
@@ -362,33 +407,57 @@ export function matchPoseToPhase(
 ): { phase: string | null; similarity: number; isMatch: boolean } {
     let bestPhase: string | null = null
     let bestSimilarity = 0
+    let bestAllMatched = false
 
     for (const phase of template.phases) {
         let matchingAngles = 0
         let totalAngles = 0
+        let allMatched = true
 
         for (const [angleName, targetAngle] of Object.entries(phase.angles)) {
             const userAngle = userAngles[angleName]
             if (userAngle !== undefined) {
                 totalAngles++
                 const diff = Math.abs(userAngle - targetAngle)
-                if (diff <= template.toleranceDegrees) {
+
+                // Use a slightly relaxed tolerance for matching (40 degrees)
+                const effectiveTolerance = Math.max(template.toleranceDegrees, 40)
+
+                if (diff <= effectiveTolerance) {
                     matchingAngles++
+                } else {
+                    allMatched = false
+                    // console.log(`Angle mismatch: ${angleName} - user: ${userAngle}°, target: ${targetAngle}°, diff: ${diff}°`)
                 }
+            } else {
+                // If we can't detect this angle, don't count it as a failure
+                // (could be visibility issue)
             }
         }
 
         const similarity = totalAngles > 0 ? matchingAngles / totalAngles : 0
 
-        if (similarity > bestSimilarity) {
+        // Prefer phases where ALL angles matched
+        if (allMatched && totalAngles > 0) {
+            if (!bestAllMatched || similarity > bestSimilarity) {
+                bestSimilarity = similarity
+                bestPhase = phase.name
+                bestAllMatched = true
+            }
+        } else if (!bestAllMatched && similarity > bestSimilarity) {
             bestSimilarity = similarity
             bestPhase = phase.name
         }
     }
 
+    // For exercises to count, we need high similarity
+    // If phase only has 1-2 angles, require 100% match
+    // If phase has 3+ angles, require at least 80% match
+    const requiredSimilarity = 0.8
+
     return {
         phase: bestPhase,
         similarity: bestSimilarity,
-        isMatch: bestSimilarity >= 0.5 // At least 50% of angles match
+        isMatch: bestAllMatched || bestSimilarity >= requiredSimilarity
     }
 }
