@@ -6,7 +6,7 @@ import { getCurrentUser, signOut, User } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import DoctorProgress from '@/app/components/DoctorProgress'
 import ThemeToggle from '../components/ThemeToggle'
-import { Activity, Users, Dumbbell, ClipboardList, LayoutDashboard, Cloud, BarChart, FileText, CloudUpload, PlayCircle, BookOpen, Utensils, Flame } from 'lucide-react'
+import { Activity, Users, Dumbbell, ClipboardList, LayoutDashboard, Cloud, BarChart, FileText, CloudUpload, PlayCircle, BookOpen, Utensils, Flame, X } from 'lucide-react'
 
 type Tab = 'dashboard' | 'patients' | 'exercises' | 'reports'
 
@@ -67,6 +67,7 @@ export default function DoctorDashboard() {
     const [showAssignDiet, setShowAssignDiet] = useState(false)
     const [dietPlanContent, setDietPlanContent] = useState('')
     const [savingDiet, setSavingDiet] = useState(false)
+    const [showViewAllAssignments, setShowViewAllAssignments] = useState(false)
 
     // Video upload states
     const [uploadingVideo, setUploadingVideo] = useState(false)
@@ -652,14 +653,30 @@ Dinner:
                                                     <p className="text-xs text-slate-500 mb-2">Assigned:</p>
                                                     <div className="flex flex-wrap gap-1.5">
                                                         {patientAssignments.slice(0, 3).map(assignment => (
-                                                            <span key={assignment.id} className="px-2 py-1 text-xs bg-teal-500/20 border border-teal-500/30 rounded text-teal-300">
+                                                            <span key={assignment.id} className="flex items-center gap-1.5 px-2 py-1 text-xs bg-teal-500/20 border border-teal-500/30 rounded text-teal-300">
                                                                 {getExerciseName(assignment.exercise_id)}
+                                                                <button 
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        removeAssignment(assignment.id)
+                                                                    }}
+                                                                    className="hover:text-red-400 transition-colors"
+                                                                >
+                                                                    <X size={12} />
+                                                                </button>
                                                             </span>
                                                         ))}
                                                         {patientAssignments.length > 3 && (
-                                                            <span className="px-2 py-1 text-xs bg-white/10 rounded text-slate-400">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setSelectedPatient(patient)
+                                                                    setShowViewAllAssignments(true)
+                                                                }}
+                                                                className="px-2 py-1 text-xs bg-white/10 rounded text-slate-400 hover:bg-white/20 transition-colors"
+                                                            >
                                                                 +{patientAssignments.length - 3} more
-                                                            </span>
+                                                            </button>
                                                         )}
                                                     </div>
                                                 </div>
@@ -1043,6 +1060,70 @@ Dinner:
                                 >
                                     {savingDiet ? 'Saving...' : 'Save Diet Plan'}
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+            {/* View All Assignments Modal */}
+            {
+                showViewAllAssignments && selectedPatient && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+                        <div className="bg-slate-800 border border-white/10 rounded-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-2xl font-bold flex items-center gap-2">
+                                    <span className="text-3xl">📋</span> {selectedPatient.name}'s Exercises
+                                </h2>
+                                <button 
+                                    onClick={() => setShowViewAllAssignments(false)}
+                                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {getPatientAssignments(selectedPatient.id).map(assignment => {
+                                    const exercise = exercises.find(e => e.id === assignment.exercise_id)
+                                    if (!exercise) return null
+                                    return (
+                                        <div key={assignment.id} className="p-4 bg-white/5 rounded-xl border border-white/10">
+                                            {exercise.video_url && (
+                                                <div className="mb-3 rounded-lg overflow-hidden bg-black aspect-video">
+                                                    <video
+                                                        src={exercise.video_url}
+                                                        className="w-full h-full object-cover"
+                                                        preload="metadata"
+                                                    />
+                                                </div>
+                                            )}
+                                            <div className="flex items-start justify-between gap-3 mb-2">
+                                                <div>
+                                                    <h3 className="font-semibold text-lg">{exercise.name}</h3>
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                                        exercise.difficulty === 'easy' ? 'bg-green-500/20 text-green-400' :
+                                                        exercise.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                        'bg-red-500/20 text-red-400'
+                                                    }`}>
+                                                        {exercise.difficulty}
+                                                    </span>
+                                                </div>
+                                                <button 
+                                                    onClick={() => removeAssignment(assignment.id)}
+                                                    className="p-2 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition-colors"
+                                                    title="Remove assignment"
+                                                >
+                                                    <X size={20} />
+                                                </button>
+                                            </div>
+                                            <p className="text-slate-400 text-sm mb-3 line-clamp-2">{exercise.description}</p>
+                                            <div className="text-xs text-slate-500 flex gap-4">
+                                                <span>{assignment.sets} sets × {assignment.reps_per_set} reps</span>
+                                                <span>Duration: {exercise.duration_seconds}s</span>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
                             </div>
                         </div>
                     </div>
