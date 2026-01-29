@@ -68,6 +68,7 @@ export default function DoctorDashboard() {
     const [dietPlanContent, setDietPlanContent] = useState('')
     const [savingDiet, setSavingDiet] = useState(false)
     const [showViewAllAssignments, setShowViewAllAssignments] = useState(false)
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
     // Video upload states
     const [uploadingVideo, setUploadingVideo] = useState(false)
@@ -78,6 +79,7 @@ export default function DoctorDashboard() {
     const [processingTemplate, setProcessingTemplate] = useState(false)
     const [templateProgress, setTemplateProgress] = useState('')
     const hiddenVideoRef = useRef<HTMLVideoElement>(null)
+
 
     useEffect(() => {
         checkAuth()
@@ -404,22 +406,44 @@ Dinner:
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 text-slate-900 dark:text-white flex transition-colors duration-500">
+            {/* Mobile Menu Overlay */}
+            {mobileMenuOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 md:hidden"
+                    onClick={() => setMobileMenuOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
-            <aside className="w-64 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border-r border-slate-200 dark:border-white/10 flex flex-col transition-colors duration-500">
-                <div className="p-6 border-b border-slate-200 dark:border-white/10">
+            <aside className={`
+                fixed md:relative z-50 h-screen
+                w-64 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl border-r border-slate-200 dark:border-white/10 
+                flex flex-col transition-all duration-300
+                ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+            `}>
+                <div className="p-6 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Activity size={28} className="text-cyan-600 dark:text-cyan-400" />
                         <span className="text-xl font-bold bg-gradient-to-r from-cyan-600 to-teal-500 dark:from-cyan-400 dark:to-teal-400 bg-clip-text text-transparent">
                             PhysioFlow
                         </span>
                     </div>
+                    <button
+                        className="md:hidden p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg"
+                        onClick={() => setMobileMenuOpen(false)}
+                    >
+                        <X size={20} />
+                    </button>
                 </div>
 
-                <nav className="flex-1 p-4">
+                <nav className="flex-1 p-4 overflow-y-auto">
                     {sidebarItems.map(item => (
                         <button
                             key={item.id}
-                            onClick={() => setActiveTab(item.id)}
+                            onClick={() => {
+                                setActiveTab(item.id)
+                                setMobileMenuOpen(false)
+                            }}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl mb-2 transition-all ${activeTab === item.id
                                 ? 'bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 dark:border-cyan-500/30'
                                 : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300'
@@ -451,19 +475,37 @@ Dinner:
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 p-8 overflow-auto relative transition-colors duration-500">
-                <ThemeToggle className="absolute top-6 right-8 z-50" />
+            <main className="flex-1 md:ml-0 p-4 sm:p-6 lg:p-8 overflow-auto relative transition-colors duration-500 min-h-screen">
+                {/* Mobile Header */}
+                <div className="md:hidden flex items-center justify-between mb-4 pb-4 border-b border-slate-200 dark:border-white/10">
+                    <button
+                        onClick={() => setMobileMenuOpen(true)}
+                        className="p-2 bg-slate-100 dark:bg-white/10 rounded-lg"
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div className="flex items-center gap-2">
+                        <Activity size={24} className="text-cyan-600 dark:text-cyan-400" />
+                        <span className="font-bold text-cyan-600 dark:text-cyan-400">PhysioFlow</span>
+                    </div>
+                    <ThemeToggle />
+                </div>
+                <ThemeToggle className="hidden md:block absolute top-6 right-8 z-50" />
                 {/* Dashboard Tab */}
                 {activeTab === 'dashboard' && (
-                    <div className="space-y-6">
+                    <div className="space-y-4 sm:space-y-6">
                         {/* Welcome Banner */}
-                        <div className="relative overflow-hidden p-8 bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 rounded-3xl">
+                        <div className="relative overflow-hidden p-4 sm:p-8 bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 rounded-2xl sm:rounded-3xl">
                             <div className="absolute inset-0 opacity-20">
                                 <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.2) 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
                             </div>
                             <div className="relative z-10">
-                                <h1 className="text-4xl font-bold mb-2">Welcome back, Dr. {user?.name}! </h1>
-                                <p className="text-white/80 text-lg">Manage your patients and exercises from your personalized dashboard</p>
+                                <h1 className="text-2xl sm:text-4xl font-bold mb-2">Welcome back, Dr. {user?.name}! </h1>
+                                <p className="text-white/80 text-sm sm:text-lg">Manage your patients and exercises from your personalized dashboard</p>
                             </div>
                             <div className="absolute right-8 bottom-0 text-[120px] opacity-20">🩺</div>
                         </div>
