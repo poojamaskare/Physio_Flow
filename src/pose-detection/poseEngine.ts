@@ -13,7 +13,7 @@ export class PoseEngine {
         this.videoElement = videoElement;
     }
 
-    async init() {
+    async init(useLightning: boolean = false) {
         if (this.detector) {
             return this.detector;
         }
@@ -36,14 +36,41 @@ export class PoseEngine {
             poseDetection = await import('@tensorflow-models/pose-detection');
         }
 
-        this.detector = await poseDetection.createDetector(
-            poseDetection.SupportedModels.MoveNet,
-            {
-                modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER,
-                enableSmoothing: true,
-                minPoseScore: 0.25
+        // Try Thunder first (more accurate), fall back to Lightning (faster & smaller)
+        const modelType = useLightning
+            ? poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
+            : poseDetection.movenet.modelType.SINGLEPOSE_THUNDER;
+
+        try {
+            console.log(`Loading MoveNet ${useLightning ? 'Lightning' : 'Thunder'}...`);
+            this.detector = await poseDetection.createDetector(
+                poseDetection.SupportedModels.MoveNet,
+                {
+                    modelType: modelType,
+                    enableSmoothing: true,
+                    minPoseScore: 0.25
+                }
+            );
+            console.log('Pose detector loaded successfully');
+        } catch (error) {
+            console.error('Failed to load model:', error);
+
+            // If Thunder failed, try Lightning as fallback
+            if (!useLightning) {
+                console.log('Retrying with Lightning model (smaller, faster)...');
+                this.detector = await poseDetection.createDetector(
+                    poseDetection.SupportedModels.MoveNet,
+                    {
+                        modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+                        enableSmoothing: true,
+                        minPoseScore: 0.25
+                    }
+                );
+                console.log('Lightning model loaded as fallback');
+            } else {
+                throw error; // Re-throw if Lightning also failed
             }
-        );
+        }
 
         return this.detector;
     }

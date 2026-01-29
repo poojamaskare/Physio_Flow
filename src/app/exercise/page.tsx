@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { Dumbbell, Repeat, Activity, ListChecks, RotateCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser, signOut, User } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
@@ -119,7 +120,11 @@ export default function ExercisePage() {
                 await videoEl.play()
 
                 poseEngineRef.current = new PoseEngine(videoEl)
-                await poseEngineRef.current.init()
+
+                // Use Lightning on mobile (smaller, faster to download)
+                const isMobile = window.innerWidth < 768 || 'ontouchstart' in window
+                console.log(`Device type: ${isMobile ? 'Mobile' : 'Desktop'}, using ${isMobile ? 'Lightning' : 'Thunder'} model`)
+                await poseEngineRef.current.init(isMobile)
 
                 // Load template from database
                 const currentExercise = assignments[currentIndex]?.exercise
@@ -438,7 +443,7 @@ export default function ExercisePage() {
     const currentTarget = assignments[currentIndex]?.reps_per_set || 10
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white transition-colors duration-500 font-sans" ref={containerRef}>
+        <div className="min-h-[100dvh] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white transition-colors duration-500 font-sans" ref={containerRef}>
             {sessionStarted ? (
                 <div className="fixed inset-0 bg-black z-50">
                     <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover -scale-x-100" />
@@ -550,24 +555,21 @@ export default function ExercisePage() {
                                             <div>
                                                 <h3 className="font-bold text-lg mb-1">
                                                     {assignment.exercise?.name}
-                                                    {assignment.completed && (
-                                                        <span className="ml-2 text-sm text-emerald-500 font-normal">✓ Completed</span>
-                                                    )}
                                                 </h3>
                                                 <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
-                                                    <span className="flex items-center gap-1">
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M2 12h20"></path></svg>
+                                                    <span className="flex items-center gap-1.5">
+                                                        <ListChecks size={16} className="text-cyan-500" />
                                                         {assignment.sets} sets
                                                     </span>
-                                                    <span className="flex items-center gap-1">
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                                    <span className="flex items-center gap-1.5">
+                                                        <RotateCw size={16} className="text-emerald-500" />
                                                         {assignment.reps_per_set} reps
                                                     </span>
-                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold uppercase ${assignment.exercise?.difficulty === 'easy' ? 'bg-green-500/10 text-green-500' :
-                                                        assignment.exercise?.difficulty === 'hard' ? 'bg-red-500/10 text-red-500' :
-                                                            'bg-yellow-500/10 text-yellow-500'
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${assignment.completed
+                                                        ? 'bg-emerald-500/10 text-emerald-500'
+                                                        : 'bg-orange-500/10 text-orange-500'
                                                         }`}>
-                                                        {assignment.exercise?.difficulty}
+                                                        {assignment.completed ? '✓ Completed' : 'Incomplete'}
                                                     </span>
                                                 </div>
                                             </div>

@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import Sidebar from '../components/Sidebar'
 import ThemeToggle from '../components/ThemeToggle'
 import Link from 'next/link'
-import { FileText, Flame, BarChart3, Phone, Menu } from 'lucide-react'
+import { FileText, Flame, BarChart3, Phone, Menu, Activity } from 'lucide-react'
 
 interface Exercise {
     id: string
@@ -319,7 +319,9 @@ function PatientDashboardContent() {
                             {activeTab === 'progress' && 'Visualize your improvement over time.'}
                         </p>
                     </div>
-                    <ThemeToggle />
+                    <div className="hidden md:block">
+                        <ThemeToggle />
+                    </div>
                 </div>
 
                 {activeTab === 'dashboard' && renderDashboard()}
@@ -328,6 +330,7 @@ function PatientDashboardContent() {
             </main>
         </div>
     )
+
 }
 
 export default function PatientDashboard() {
