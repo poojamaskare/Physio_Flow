@@ -218,8 +218,8 @@ export default function DoctorProgress({ doctorId }: DoctorProgressProps) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-cyan-100 dark:bg-cyan-500/20 rounded-lg">
-              <Users className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-teal-400 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+              <Users className="w-5 h-5 text-white" />
             </div>
           </div>
           <div className="text-2xl font-bold text-slate-900 dark:text-white">{totalPatients}</div>
@@ -228,8 +228,8 @@ export default function DoctorProgress({ doctorId }: DoctorProgressProps) {
 
         <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-green-100 dark:bg-green-500/20 rounded-lg">
-              <Target className="w-5 h-5 text-green-600 dark:text-green-400" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-lg shadow-green-500/20">
+              <Target className="w-5 h-5 text-white" />
             </div>
           </div>
           <div className="text-2xl font-bold text-slate-900 dark:text-white">{avgOverallAccuracy}%</div>
@@ -238,8 +238,8 @@ export default function DoctorProgress({ doctorId }: DoctorProgressProps) {
 
         <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-purple-100 dark:bg-purple-500/20 rounded-lg">
-              <Activity className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+              <Activity className="w-5 h-5 text-white" />
             </div>
           </div>
           <div className="text-2xl font-bold text-slate-900 dark:text-white">{totalSessions}</div>
@@ -248,8 +248,8 @@ export default function DoctorProgress({ doctorId }: DoctorProgressProps) {
 
         <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-yellow-100 dark:bg-yellow-500/20 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
+              <AlertTriangle className="w-5 h-5 text-white" />
             </div>
           </div>
           <div className="text-2xl font-bold text-slate-900 dark:text-white">{patientsNeedingAttention}</div>

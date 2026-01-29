@@ -9,7 +9,7 @@ import {
     fetchPatients, addPatient, assignDoctor, deletePatient,
     fetchReportsData, Doctor, Patient, DashboardStats, WeeklyData
 } from '@/lib/adminApi'
-import { Menu, X, Activity, Plus, Trash2, TrendingUp } from 'lucide-react'
+import { Menu, X, Activity, Plus, Trash2, TrendingUp, Users, Stethoscope, FileText, LucideIcon, Calendar, Dumbbell, Shield, SquareUser, Cloud, BarChart } from 'lucide-react'
 
 type Tab = 'dashboard' | 'doctors' | 'patients' | 'reports'
 
@@ -130,11 +130,11 @@ export default function AdminDashboard() {
         )
     }
 
-    const tabs: { id: Tab; label: string; icon: string }[] = [
-        { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-        { id: 'doctors', label: 'Doctors', icon: '👨‍⚕️' },
-        { id: 'patients', label: 'Patients', icon: '👥' },
-        { id: 'reports', label: 'Reports', icon: '📈' },
+    const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
+        { id: 'dashboard', label: 'Dashboard', icon: Activity },
+        { id: 'doctors', label: 'Doctors', icon: Stethoscope },
+        { id: 'patients', label: 'Patients', icon: Users },
+        { id: 'reports', label: 'Reports', icon: FileText },
     ]
 
     return (
@@ -177,7 +177,7 @@ export default function AdminDashboard() {
                                 : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
                                 }`}
                         >
-                            <span className="text-lg">{tab.icon}</span>
+                            <tab.icon className="w-5 h-5" />
                             <span className="font-medium">{tab.label}</span>
                         </button>
                     ))}
@@ -219,10 +219,10 @@ export default function AdminDashboard() {
 
                         {/* Stats Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                            <StatCard icon="👨‍⚕️" label="Total Doctors" value={stats.totalDoctors} color="cyan" />
-                            <StatCard icon="🧑‍🤝‍🧑" label="Total Patients" value={stats.totalPatients} color="teal" />
-                            <StatCard icon="🏋️" label="Exercise Sessions" value={stats.totalSessions} color="purple" />
-                            <StatCard icon="🟢" label="Active Today" value={stats.activeUsers} color="green" />
+                            <StatCard icon={Shield} label="Total Doctors" value={stats.totalDoctors} gradient="from-cyan-400 to-cyan-600" />
+                            <StatCard icon={SquareUser} label="Total Patients" value={stats.totalPatients} gradient="from-teal-400 to-teal-600" />
+                            <StatCard icon={Cloud} label="Exercise Sessions" value={stats.totalSessions} gradient="from-purple-400 to-purple-600" />
+                            <StatCard icon={BarChart} label="Active Today" value={stats.activeUsers} gradient="from-green-400 to-green-600" />
                         </div>
 
                         {/* Charts */}
@@ -610,25 +610,14 @@ export default function AdminDashboard() {
 }
 
 // Components
-function StatCard({ icon, label, value, color }: { icon: string; label: string; value: number; color: string }) {
-    const colors: Record<string, string> = {
-        cyan: 'from-cyan-500/20 to-cyan-500/5 border-cyan-500/20',
-        teal: 'from-teal-500/20 to-teal-500/5 border-teal-500/20',
-        purple: 'from-purple-500/20 to-purple-500/5 border-purple-500/20',
-        green: 'from-green-500/20 to-green-500/5 border-green-500/20',
-    }
-    const textColors: Record<string, string> = {
-        cyan: 'text-cyan-400',
-        teal: 'text-teal-400',
-        purple: 'text-purple-400',
-        green: 'text-green-400',
-    }
-
+function StatCard({ icon: Icon, label, value, gradient }: { icon: LucideIcon; label: string; value: number; gradient: string }) {
     return (
-        <div className={`bg-gradient-to-br ${colors[color]} backdrop-blur-xl border rounded-2xl p-6`}>
-            <div className="text-3xl mb-3">{icon}</div>
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+            <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-4 text-white shadow-lg`}>
+                <Icon className="w-7 h-7" />
+            </div>
             <p className="text-slate-400 text-sm mb-1">{label}</p>
-            <p className={`text-3xl font-bold ${textColors[color]}`}>{value}</p>
+            <p className="text-3xl font-bold text-white">{value}</p>
         </div>
     )
 }

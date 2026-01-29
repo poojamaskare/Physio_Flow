@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Activity, Calendar, UserPlus, PlayCircle } from 'lucide-react';
+import { Users, Cloud, CircleArrowDown, UserPlus, PlayCircle } from 'lucide-react';
 import { fetchDoctorActivity, ActivityItem } from '@/lib/doctorApi';
 
 export default function DoctorOverview({ doctorId, onPatientSelect }: { doctorId?: string, onPatientSelect: (id: number) => void }) {
@@ -18,9 +18,9 @@ export default function DoctorOverview({ doctorId, onPatientSelect }: { doctorId
             
             <div className="grid md:grid-cols-3 gap-6">
                 {[
-                    { label: 'Total Patients', value: '12', icon: Users, color: 'cyan' },
-                    { label: 'Appointments Today', value: '4', icon: Calendar, color: 'purple' },
-                    { label: 'Pending Reviews', value: '3', icon: Activity, color: 'orange' },
+                    { label: 'Total Patients', value: '12', icon: Users, gradient: 'from-cyan-400 to-cyan-600' },
+                    { label: 'Appointments Today', value: '4', icon: Cloud, gradient: 'from-purple-400 to-purple-600' },
+                    { label: 'Pending Reviews', value: '3', icon: CircleArrowDown, gradient: 'from-orange-400 to-orange-600' },
                 ].map((stat, i) => (
                     <motion.div 
                         key={i}
@@ -29,8 +29,8 @@ export default function DoctorOverview({ doctorId, onPatientSelect }: { doctorId
                         transition={{ delay: i * 0.1 }}
                         className="p-6 bg-slate-800 rounded-2xl border border-slate-700"
                     >
-                        <div className={`w-12 h-12 rounded-xl bg-${stat.color}-500/10 flex items-center justify-center mb-4 text-${stat.color}-400`}>
-                            <stat.icon className="w-6 h-6" />
+                        <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center mb-4 text-white shadow-lg`}>
+                            <stat.icon className="w-7 h-7" />
                         </div>
                         <h3 className="text-3xl font-bold text-white mb-1">{stat.value}</h3>
                         <p className="text-slate-400">{stat.label}</p>

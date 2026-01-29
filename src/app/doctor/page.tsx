@@ -6,7 +6,7 @@ import { getCurrentUser, signOut, User } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import DoctorProgress from '@/app/components/DoctorProgress'
 import ThemeToggle from '../components/ThemeToggle'
-import { Activity } from 'lucide-react'
+import { Activity, Users, Dumbbell, ClipboardList, LayoutDashboard, Cloud, BarChart, FileText, CloudUpload, PlayCircle, BookOpen } from 'lucide-react'
 
 type Tab = 'dashboard' | 'patients' | 'exercises' | 'reports'
 
@@ -249,10 +249,10 @@ export default function DoctorDashboard() {
     }
 
     const sidebarItems = [
-        { id: 'dashboard' as Tab, label: 'Dashboard', icon: '📊' },
-        { id: 'patients' as Tab, label: 'My Patients', icon: '👥' },
-        { id: 'exercises' as Tab, label: 'Exercise Library', icon: '🏋️' },
-        { id: 'reports' as Tab, label: 'Reports', icon: '📈' },
+        { id: 'dashboard' as Tab, label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+        { id: 'patients' as Tab, label: 'My Patients', icon: <Users size={20} /> },
+        { id: 'exercises' as Tab, label: 'Exercise Library', icon: <Dumbbell size={20} /> },
+        { id: 'reports' as Tab, label: 'Reports', icon: <ClipboardList size={20} /> },
     ]
 
     const getPatientAssignments = (patientId: string) => {
@@ -323,7 +323,7 @@ export default function DoctorDashboard() {
                                 <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.2) 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
                             </div>
                             <div className="relative z-10">
-                                <h1 className="text-4xl font-bold mb-2">Welcome back, Dr. {user?.name}! 👋</h1>
+                                <h1 className="text-4xl font-bold mb-2">Welcome back, Dr. {user?.name}! </h1>
                                 <p className="text-white/80 text-lg">Manage your patients and exercises from your personalized dashboard</p>
                             </div>
                             <div className="absolute right-8 bottom-0 text-[120px] opacity-20">🩺</div>
@@ -333,7 +333,9 @@ export default function DoctorDashboard() {
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="group p-6 bg-gradient-to-br from-blue-500/20 to-blue-600/10 backdrop-blur-xl border border-blue-500/20 rounded-2xl hover:border-blue-500/40 transition-all cursor-pointer" onClick={() => setActiveTab('patients')}>
                                 <div className="flex items-center justify-between mb-4">
-                                    <div className="w-14 h-14 rounded-2xl bg-blue-500/20 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">👥</div>
+                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
+                                        <Users className="w-7 h-7 text-white" />
+                                    </div>
                                     <span className="text-xs px-2 py-1 bg-blue-500/20 rounded-full text-blue-400">View →</span>
                                 </div>
                                 <div className="text-4xl font-bold text-white mb-1">{patients.length}</div>
@@ -342,7 +344,9 @@ export default function DoctorDashboard() {
 
                             <div className="group p-6 bg-gradient-to-br from-teal-500/20 to-teal-600/10 backdrop-blur-xl border border-teal-500/20 rounded-2xl hover:border-teal-500/40 transition-all cursor-pointer" onClick={() => setActiveTab('exercises')}>
                                 <div className="flex items-center justify-between mb-4">
-                                    <div className="w-14 h-14 rounded-2xl bg-teal-500/20 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">🏋️</div>
+                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center shadow-lg shadow-teal-500/20 group-hover:scale-110 transition-transform">
+                                        <Dumbbell className="w-7 h-7 text-white" />
+                                    </div>
                                     <span className="text-xs px-2 py-1 bg-teal-500/20 rounded-full text-teal-400">Add →</span>
                                 </div>
                                 <div className="text-4xl font-bold text-white mb-1">{exercises.length}</div>
@@ -351,7 +355,9 @@ export default function DoctorDashboard() {
 
                             <div className="group p-6 bg-gradient-to-br from-purple-500/20 to-purple-600/10 backdrop-blur-xl border border-purple-500/20 rounded-2xl hover:border-purple-500/40 transition-all">
                                 <div className="flex items-center justify-between mb-4">
-                                    <div className="w-14 h-14 rounded-2xl bg-purple-500/20 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">📋</div>
+                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/20 group-hover:scale-110 transition-transform">
+                                        <ClipboardList className="w-7 h-7 text-white" />
+                                    </div>
                                     <span className="text-xs px-2 py-1 bg-purple-500/20 rounded-full text-purple-400">Active</span>
                                 </div>
                                 <div className="text-4xl font-bold text-white mb-1">{assignments.length}</div>
@@ -360,7 +366,9 @@ export default function DoctorDashboard() {
 
                             <div className="group p-6 bg-gradient-to-br from-amber-500/20 to-amber-600/10 backdrop-blur-xl border border-amber-500/20 rounded-2xl hover:border-amber-500/40 transition-all cursor-pointer" onClick={() => setActiveTab('reports')}>
                                 <div className="flex items-center justify-between mb-4">
-                                    <div className="w-14 h-14 rounded-2xl bg-amber-500/20 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">📊</div>
+                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform">
+                                        <BarChart className="w-7 h-7 text-white" />
+                                    </div>
                                     <span className="text-xs px-2 py-1 bg-amber-500/20 rounded-full text-amber-400">Soon</span>
                                 </div>
                                 <div className="text-4xl font-bold text-white mb-1">--</div>
@@ -380,7 +388,9 @@ export default function DoctorDashboard() {
                                         onClick={() => { setActiveTab('exercises'); setShowAddExercise(true); }}
                                         className="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border border-cyan-500/30 rounded-xl hover:border-cyan-500/50 transition-all group"
                                     >
-                                        <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">📹</div>
+                                        <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                            <CloudUpload className="w-6 h-6 text-cyan-400" />
+                                        </div>
                                         <div className="text-left flex-1">
                                             <div className="font-semibold">Upload Exercise Video</div>
                                             <div className="text-sm text-slate-400">Add a new exercise with video</div>
@@ -392,7 +402,9 @@ export default function DoctorDashboard() {
                                         onClick={() => setActiveTab('patients')}
                                         className="w-full flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-xl hover:border-white/20 transition-all group"
                                     >
-                                        <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">👥</div>
+                                        <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                            <Users className="w-6 h-6 text-purple-400" />
+                                        </div>
                                         <div className="text-left flex-1">
                                             <div className="font-semibold">Manage Patients</div>
                                             <div className="text-sm text-slate-400">View & assign exercises</div>
@@ -404,7 +416,9 @@ export default function DoctorDashboard() {
                                         onClick={() => setActiveTab('exercises')}
                                         className="w-full flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-xl hover:border-white/20 transition-all group"
                                     >
-                                        <div className="w-12 h-12 rounded-xl bg-teal-500/20 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">📚</div>
+                                        <div className="w-12 h-12 rounded-xl bg-teal-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                            <BookOpen className="w-6 h-6 text-teal-400" />
+                                        </div>
                                         <div className="text-left flex-1">
                                             <div className="font-semibold">Exercise Library</div>
                                             <div className="text-sm text-slate-400">Browse all exercises</div>

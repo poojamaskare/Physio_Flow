@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { 
-  Users, 
-  Activity, 
-  FileText, 
+  LayoutDashboard,
+  Users,
+  ClipboardList,
   LogOut, 
   Menu, 
   X,
@@ -29,11 +29,11 @@ export default function DoctorDashboard({ user, onLogout }: DoctorDashboardProps
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Activity },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'patients', label: 'My Patients', icon: Users },
     { id: 'exercises', label: 'Exercise Assignment', icon: Dumbbell },
     { id: 'diet', label: 'Diet Plans', icon: Apple },
-    { id: 'reports', label: 'Reports', icon: FileText },
+    { id: 'reports', label: 'Reports', icon: ClipboardList },
   ];
 
   const handlePatientSelect = (patientId: number) => {

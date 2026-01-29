@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Upload, Plus, Video, Search } from 'lucide-react';
+import { CloudUpload, Plus, Video, Search } from 'lucide-react';
 
 export default function DoctorExercises() {
   return (
@@ -12,8 +12,8 @@ export default function DoctorExercises() {
         animate={{ opacity: 1, y: 0 }}
         className="p-8 border-2 border-dashed border-slate-700 rounded-2xl bg-slate-800/50 hover:bg-slate-800 transition-colors text-center cursor-pointer"
       >
-        <div className="w-16 h-16 rounded-full bg-slate-700 mx-auto flex items-center justify-center mb-4">
-          <Upload className="w-8 h-8 text-cyan-400" />
+        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-400/20 to-teal-400/20 mx-auto flex items-center justify-center mb-4">
+          <CloudUpload className="w-8 h-8 text-cyan-400" />
         </div>
         <h3 className="text-lg font-bold text-white mb-1">Upload Reference Video</h3>
         <p className="text-slate-400 text-sm mb-4">Drag and drop or click to browse</p>

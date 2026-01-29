@@ -60,7 +60,7 @@ export default function DoctorPatients({ doctorId }: DoctorPatientsProps) {
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center group-hover:bg-cyan-500/10 transition-colors">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-400/20 to-teal-400/20 flex items-center justify-center group-hover:from-cyan-400/30 group-hover:to-teal-400/30 transition-all">
                   <User className="w-6 h-6 text-cyan-400" />
                 </div>
                 <div>
