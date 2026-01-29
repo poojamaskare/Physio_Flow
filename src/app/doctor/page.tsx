@@ -6,7 +6,8 @@ import { getCurrentUser, signOut, User } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import DoctorProgress from '@/app/components/DoctorProgress'
 import ThemeToggle from '../components/ThemeToggle'
-import { Activity, Users, Dumbbell, ClipboardList, LayoutDashboard, Cloud, BarChart, FileText, CloudUpload, PlayCircle, BookOpen, Utensils, Flame, X } from 'lucide-react'
+import { Activity, Users, Dumbbell, ClipboardList, LayoutDashboard, Cloud, BarChart, FileText, CloudUpload, PlayCircle, BookOpen, Utensils, Flame, X, Menu } from 'lucide-react'
+import Sidebar, { MenuItem } from '../components/Sidebar'
 
 type Tab = 'dashboard' | 'patients' | 'exercises' | 'reports'
 
@@ -73,6 +74,7 @@ export default function DoctorDashboard() {
     const [uploadingVideo, setUploadingVideo] = useState(false)
     const [uploadProgress, setUploadProgress] = useState(0)
     const [videoFile, setVideoFile] = useState<File | null>(null)
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
     useEffect(() => {
         checkAuth()
@@ -299,11 +301,11 @@ Dinner:
         )
     }
 
-    const sidebarItems = [
-        { id: 'dashboard' as Tab, label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-        { id: 'patients' as Tab, label: 'My Patients', icon: <Users size={20} /> },
-        { id: 'exercises' as Tab, label: 'Exercise Library', icon: <Dumbbell size={20} /> },
-        { id: 'reports' as Tab, label: 'Reports', icon: <ClipboardList size={20} /> },
+    const doctorMenuItems: MenuItem[] = [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, onClick: () => setActiveTab('dashboard') },
+        { id: 'patients', label: 'My Patients', icon: Users, onClick: () => setActiveTab('patients') },
+        { id: 'exercises', label: 'Exercise Library', icon: Dumbbell, onClick: () => setActiveTab('exercises') },
+        { id: 'reports', label: 'Reports', icon: ClipboardList, onClick: () => setActiveTab('reports') },
     ]
 
     const getPatientAssignments = (patientId: string) => {
@@ -315,56 +317,32 @@ Dinner:
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 text-slate-900 dark:text-white flex transition-colors duration-500">
-            {/* Sidebar */}
-            <aside className="w-64 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border-r border-slate-200 dark:border-white/10 flex flex-col transition-colors duration-500">
-                <div className="p-6 border-b border-slate-200 dark:border-white/10">
-                    <div className="flex items-center gap-3">
-                        <Activity size={28} className="text-cyan-600 dark:text-cyan-400" />
-                        <span className="text-xl font-bold bg-gradient-to-r from-cyan-600 to-teal-500 dark:from-cyan-400 dark:to-teal-400 bg-clip-text text-transparent">
-                            PhysioFlow
-                        </span>
-                    </div>
-                </div>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 text-slate-900 dark:text-white transition-colors duration-500 font-sans">
+            <Sidebar 
+                user={user} 
+                onLogout={handleLogout} 
+                isOpen={isSidebarOpen} 
+                onClose={() => setIsSidebarOpen(false)}
+                items={doctorMenuItems}
+                activeTab={activeTab}
+            />
 
-                <nav className="flex-1 p-4">
-                    {sidebarItems.map(item => (
-                        <button
-                            key={item.id}
-                            onClick={() => setActiveTab(item.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl mb-2 transition-all ${activeTab === item.id
-                                ? 'bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 dark:border-cyan-500/30'
-                                : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300'
-                                }`}
-                        >
-                            <span className="text-xl">{item.icon}</span>
-                            <span className="font-medium">{item.label}</span>
-                        </button>
-                    ))}
-                </nav>
-
-                <div className="p-4 border-t border-slate-200 dark:border-white/10">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-teal-500 flex items-center justify-center font-bold text-white">
-                            {user?.name?.charAt(0) || 'D'}
-                        </div>
-                        <div>
-                            <p className="font-medium text-sm text-slate-900 dark:text-white">Dr. {user?.name}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Doctor</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={handleLogout}
-                        className="w-full px-4 py-2 border border-slate-200 dark:border-white/20 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-500/10 hover:border-red-200 dark:hover:border-red-500 hover:text-red-600 dark:hover:text-red-400 transition-all text-sm"
-                    >
-                        Logout
+            {/* Mobile Header */}
+            <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-white/10 p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                     <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 dark:text-slate-300">
+                        <Menu size={24} />
                     </button>
+                    <span className="font-bold text-lg bg-gradient-to-r from-cyan-600 to-teal-500 dark:from-cyan-400 dark:to-teal-400 bg-clip-text text-transparent">
+                        PhysioFlow
+                    </span>
                 </div>
-            </aside>
+                <ThemeToggle />
+            </div>
 
             {/* Main Content */}
-            <main className="flex-1 p-8 overflow-auto relative transition-colors duration-500">
-                <ThemeToggle className="absolute top-6 right-8 z-50" />
+            <main className="md:ml-64 p-4 md:p-8 pt-20 md:pt-8 overflow-auto relative transition-colors duration-500 min-h-screen">
+                <ThemeToggle className="hidden md:flex absolute top-6 right-8 z-50" />
                 {/* Dashboard Tab */}
                 {activeTab === 'dashboard' && (
                     <div className="space-y-6">
@@ -756,12 +734,6 @@ Dinner:
                                                 <div className="text-3xl">🏋️</div>
                                                 <div>
                                                     <h3 className="font-semibold">{exercise.name}</h3>
-                                                    <span className={`text-xs px-2 py-0.5 rounded-full ${exercise.difficulty === 'easy' ? 'bg-green-500/20 text-green-400' :
-                                                        exercise.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                            'bg-red-500/20 text-red-400'
-                                                        }`}>
-                                                        {exercise.difficulty}
-                                                    </span>
                                                 </div>
                                             </div>
                                             <p className="text-slate-400 text-sm mb-3">{exercise.description || 'No description'}</p>
@@ -1100,13 +1072,6 @@ Dinner:
                                             <div className="flex items-start justify-between gap-3 mb-2">
                                                 <div>
                                                     <h3 className="font-semibold text-lg">{exercise.name}</h3>
-                                                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                                        exercise.difficulty === 'easy' ? 'bg-green-500/20 text-green-400' :
-                                                        exercise.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                        'bg-red-500/20 text-red-400'
-                                                    }`}>
-                                                        {exercise.difficulty}
-                                                    </span>
                                                 </div>
                                                 <button 
                                                     onClick={() => removeAssignment(assignment.id)}

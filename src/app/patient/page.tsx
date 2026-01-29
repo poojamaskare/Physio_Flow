@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import Sidebar from '../components/Sidebar'
 import ThemeToggle from '../components/ThemeToggle'
 import Link from 'next/link'
-import { FileText, Flame, BarChart3, Phone } from 'lucide-react'
+import { FileText, Flame, BarChart3, Phone, Menu } from 'lucide-react'
 
 interface Exercise {
     id: string
@@ -40,6 +40,7 @@ function PatientDashboardContent() {
     const [doctor, setDoctor] = useState<{ name: string; email: string; phone: string } | null>(null)
     const [dietPlan, setDietPlan] = useState<string | null>(null)
     const [progress, setProgress] = useState({ completed: 0, total: 0 })
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
     useEffect(() => {
         checkAuth()
@@ -282,9 +283,27 @@ function PatientDashboardContent() {
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white transition-colors duration-300 font-sans">
-            <Sidebar user={user} onLogout={handleLogout} />
+            <Sidebar 
+                user={user} 
+                onLogout={handleLogout} 
+                isOpen={isSidebarOpen} 
+                onClose={() => setIsSidebarOpen(false)}
+            />
 
-            <main className="ml-64 p-8 transition-all duration-300">
+            {/* Mobile Header */}
+            <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-white/10 p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                     <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 dark:text-slate-300">
+                        <Menu size={24} />
+                    </button>
+                    <span className="font-bold text-lg bg-gradient-to-r from-cyan-600 to-teal-500 dark:from-cyan-400 dark:to-teal-400 bg-clip-text text-transparent">
+                        PhysioFlow
+                    </span>
+                </div>
+                <ThemeToggle />
+            </div>
+
+            <main className="md:ml-64 p-4 md:p-8 pt-20 md:pt-8 transition-all duration-300">
                 {/* Top Header Area */}
                 <div className="flex justify-between items-start mb-8">
                     <div>
