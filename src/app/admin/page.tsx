@@ -9,6 +9,7 @@ import {
     fetchPatients, addPatient, assignDoctor, deletePatient,
     fetchReportsData, Doctor, Patient, DashboardStats, WeeklyData
 } from '@/lib/adminApi'
+import { Menu, X, Activity, Plus, Trash2, TrendingUp } from 'lucide-react'
 
 type Tab = 'dashboard' | 'doctors' | 'patients' | 'reports'
 
@@ -144,16 +145,9 @@ export default function AdminDashboard() {
                 className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-slate-800 text-white shadow-lg"
             >
                 {sidebarOpen ? (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                    <X size={24} />
                 ) : (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
+                    <Menu size={24} />
                 )}
             </button>
 
@@ -164,9 +158,7 @@ export default function AdminDashboard() {
                 {/* Header - PhysioFlow Branding */}
                 <div className="p-6 border-b border-slate-700/50">
                     <div className="flex items-center gap-3">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" strokeWidth="2.5">
-                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                        </svg>
+                        <Activity size={28} className="text-cyan-400" />
                         <span className="text-xl font-bold text-cyan-400">PhysioFlow</span>
                     </div>
                 </div>
@@ -289,10 +281,7 @@ export default function AdminDashboard() {
                                 onClick={() => setShowAddDoctor(true)}
                                 className="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-xl text-slate-900 font-semibold flex items-center gap-2 hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
                             >
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                                </svg>
+                                <Plus size={20} />
                                 Add Doctor
                             </button>
                         </div>
@@ -410,10 +399,7 @@ export default function AdminDashboard() {
                                 onClick={() => setShowAddPatient(true)}
                                 className="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-xl text-slate-900 font-semibold flex items-center gap-2 hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
                             >
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                                </svg>
+                                <Plus size={20} />
                                 Add Patient
                             </button>
                         </div>
@@ -430,10 +416,7 @@ export default function AdminDashboard() {
                                             onClick={() => handleDeletePatient(patient.id)}
                                             className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
                                         >
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                <polyline points="3 6 5 6 21 6"></polyline>
-                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                            </svg>
+                                            <Trash2 size={16} />
                                         </button>
                                     </div>
 
@@ -572,10 +555,7 @@ export default function AdminDashboard() {
                                 </h3>
                                 <div className="flex items-center gap-4">
                                     <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center">
-                                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#5EF38C" strokeWidth="2">
-                                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-                                            <polyline points="17 6 23 6 23 12"></polyline>
-                                        </svg>
+                                        <TrendingUp size={32} className="text-green-400" />
                                     </div>
                                     <div>
                                         <p className="text-3xl font-bold text-green-400">+12%</p>
@@ -660,10 +640,7 @@ function Modal({ children, onClose, title }: { children: React.ReactNode; onClos
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold">{title}</h2>
                     <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
+                        <X size={20} />
                     </button>
                 </div>
                 {children}

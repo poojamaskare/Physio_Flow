@@ -6,6 +6,7 @@ import { getCurrentUser, signOut, User } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import DoctorProgress from '@/app/components/DoctorProgress'
 import ThemeToggle from '../components/ThemeToggle'
+import { Activity } from 'lucide-react'
 
 type Tab = 'dashboard' | 'patients' | 'exercises' | 'reports'
 
@@ -268,9 +269,7 @@ export default function DoctorDashboard() {
             <aside className="w-64 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border-r border-slate-200 dark:border-white/10 flex flex-col transition-colors duration-500">
                 <div className="p-6 border-b border-slate-200 dark:border-white/10">
                     <div className="flex items-center gap-3">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-cyan-600 dark:text-cyan-400">
-                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                        </svg>
+                        <Activity size={28} className="text-cyan-600 dark:text-cyan-400" />
                         <span className="text-xl font-bold bg-gradient-to-r from-cyan-600 to-teal-500 dark:from-cyan-400 dark:to-teal-400 bg-clip-text text-transparent">
                             PhysioFlow
                         </span>

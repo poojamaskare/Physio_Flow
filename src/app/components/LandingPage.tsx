@@ -2,6 +2,20 @@
 
 import { motion } from "framer-motion"
 import { useTheme } from "./ThemeProvider"
+import { 
+    Activity, 
+    Heart, 
+    BarChart3, 
+    Zap, 
+    Users, 
+    Target, 
+    Sun, 
+    Moon, 
+    Star, 
+    ArrowRight,
+    UserPlus,
+    Stethoscope
+} from "lucide-react"
 
 interface LandingPageProps {
     onGetStarted: () => void
@@ -37,61 +51,32 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
     const features = [
         {
-            icon: (
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                </svg>
-            ),
+            icon: <Activity size={28} />,
             title: "AI Pose Detection",
             description: "Real-time skeletal tracking ensures correct exercise form with instant accuracy feedback.",
         },
         {
-            icon: (
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                </svg>
-            ),
+            icon: <Heart size={28} />,
             title: "Personalized Plans",
             description: "Custom treatment and nutrition plans tailored to your specific recovery goals.",
         },
         {
-            icon: (
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M18 20V10M12 20V4M6 20v-6"></path>
-                </svg>
-            ),
+            icon: <BarChart3 size={28} />,
             title: "Progress Analytics",
             description: "Comprehensive dashboards with detailed insights into your recovery journey.",
         },
         {
-            icon: (
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                </svg>
-            ),
+            icon: <Zap size={28} />,
             title: "Instant Feedback",
             description: "Get real-time corrections during exercise sessions for optimal results.",
         },
         {
-            icon: (
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
-            ),
+            icon: <Users size={28} />,
             title: "Doctor Connect",
             description: "Secure messaging and video calls with your healthcare providers.",
         },
         {
-            icon: (
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <circle cx="12" cy="12" r="6"></circle>
-                    <circle cx="12" cy="12" r="2"></circle>
-                </svg>
-            ),
+            icon: <Target size={28} />,
             title: "Goal Tracking",
             description: "Set recovery milestones and celebrate achievements as you progress.",
         },
@@ -111,9 +96,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 <div className="max-w-6xl mx-auto flex items-center justify-between">
                     <motion.div className="flex items-center gap-3" whileHover={{ scale: 1.02 }}>
                         <div className="p-2.5 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-400 shadow-lg">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                            </svg>
+                            <Activity size={24} className="text-white" />
                         </div>
                         <span className={`text-2xl font-bold ${c.text}`}>
                             Physio<span className="bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">Flow</span>
@@ -128,21 +111,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                             className={`p-2.5 rounded-xl ${c.card} ${c.cardBorder} border shadow-sm hover:shadow-md transition-shadow`}
                         >
                             {isDark ? (
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-cyan-400">
-                                    <circle cx="12" cy="12" r="5"></circle>
-                                    <line x1="12" y1="1" x2="12" y2="3"></line>
-                                    <line x1="12" y1="21" x2="12" y2="23"></line>
-                                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                                    <line x1="1" y1="12" x2="3" y2="12"></line>
-                                    <line x1="21" y1="12" x2="23" y2="12"></line>
-                                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                                </svg>
+                                <Sun size={20} className="text-cyan-400" />
                             ) : (
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
-                                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                                </svg>
+                                <Moon size={20} className="text-slate-500" />
                             )}
                         </motion.button>
                     </div>
@@ -183,9 +154,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                             animate={{ rotate: [0, 15, -15, 0] }}
                             transition={{ duration: 3, repeat: Infinity }}
                         >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-cyan-400">
-                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                            </svg>
+                            <Star size={16} className="text-cyan-400" />
                         </motion.div>
                         <span className="text-sm font-semibold text-cyan-400">
                             AI-Powered Rehabilitation Platform
@@ -374,9 +343,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                         <div className="hidden md:block absolute top-[60px] left-[16%] right-[16%] h-1 rounded-full opacity-30 bg-gradient-to-r from-cyan-500 to-teal-400" />
 
                         {[
-                            { step: "01", title: "Create Account", description: "Sign up and complete your health profile.", iconPath: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" },
-                            { step: "02", title: "Connect with Doctor", description: "Get matched with a specialist for your plan.", iconPath: "M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" },
-                            { step: "03", title: "Start Exercising", description: "Follow AI-guided sessions with real-time feedback.", iconPath: "M22 12h-4l-3 9L9 3l-3 9H2" },
+                            { step: "01", title: "Create Account", description: "Sign up and complete your health profile.", icon: UserPlus },
+                            { step: "02", title: "Connect with Doctor", description: "Get matched with a specialist for your plan.", icon: Stethoscope },
+                            { step: "03", title: "Start Exercising", description: "Follow AI-guided sessions with real-time feedback.", icon: Activity },
                         ].map((item, i) => (
                             <motion.div
                                 key={i}
@@ -390,9 +359,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                                     whileHover={{ scale: 1.1, rotate: 5 }}
                                     className="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center mb-6 bg-gradient-to-br from-cyan-500 to-teal-400 shadow-lg shadow-cyan-500/30"
                                 >
-                                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                                        <path d={item.iconPath}></path>
-                                    </svg>
+                                    <item.icon size={40} className="text-white" />
                                 </motion.div>
                                 <div className={`text-6xl font-black absolute top-0 left-1/2 -translate-x-1/2 -translate-y-4 opacity-20 ${isDark ? 'text-white/10' : 'text-black/10'}`}>
                                     {item.step}
@@ -429,9 +396,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                         transition={{ duration: 2, repeat: Infinity }}
                         className="inline-flex items-center justify-center w-20 h-20 rounded-3xl mb-10 bg-gradient-to-br from-cyan-500 to-teal-400"
                     >
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                        </svg>
+                        <Star size={40} className="text-white" />
                     </motion.div>
 
                     <h2 className={`text-4xl md:text-5xl font-bold mb-6 ${c.text}`}>
@@ -462,9 +427,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
                     <div className="flex items-center gap-2">
                         <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500 to-teal-400">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                            </svg>
+                            <Activity size={20} className="text-white" />
                         </div>
                         <span className={`text-xl font-bold ${c.text}`}>
                             Physio<span className="text-cyan-400">Flow</span>
