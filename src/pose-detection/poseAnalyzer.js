@@ -9,7 +9,7 @@ export class PoseAnalyzer {
   }
 
   // New method: Compare user pose with reference pose and return feedback
-  comparePosesWithFeedback(userKeypoints, referenceKeypoints, threshold = 0.50) {  // Lowered from 0.65 to 0.50
+  comparePosesWithFeedback(userKeypoints, referenceKeypoints, threshold = 0.40) {  // Lenient threshold - 40%
     if (!Array.isArray(userKeypoints) || !Array.isArray(referenceKeypoints)) {
       return { isCorrect: false, feedback: 'Position yourself in frame' }
     }
@@ -55,7 +55,7 @@ export class PoseAnalyzer {
           const angleDiff = userAngle - refAngle
           const absDiff = Math.abs(angleDiff)
 
-          // Allow 45 degrees tolerance for much easier matching
+          // Allow 45 degrees tolerance for lenient matching
           if (absDiff <= 45) {
             matchingJoints++
           } else {

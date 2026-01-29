@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser, signOut, User } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
@@ -69,12 +69,19 @@ export default function DoctorDashboard() {
     const [dietPlanContent, setDietPlanContent] = useState('')
     const [savingDiet, setSavingDiet] = useState(false)
     const [showViewAllAssignments, setShowViewAllAssignments] = useState(false)
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
     // Video upload states
     const [uploadingVideo, setUploadingVideo] = useState(false)
     const [uploadProgress, setUploadProgress] = useState(0)
     const [videoFile, setVideoFile] = useState<File | null>(null)
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
+    // Template processing states
+    const [processingTemplate, setProcessingTemplate] = useState(false)
+    const [templateProgress, setTemplateProgress] = useState('')
+    const hiddenVideoRef = useRef<HTMLVideoElement>(null)
+
 
     useEffect(() => {
         checkAuth()
@@ -221,7 +228,21 @@ export default function DoctorDashboard() {
                 return
             }
 
-            // 4. Assign to patient
+            // 4. Create initial template entry (marked as processing)
+            setTemplateProgress('Creating template entry...')
+            await supabase.from('exercise_templates').insert([{
+                exercise_id: exerciseData.id,
+                phases: [],
+                status: 'processing'
+            }])
+
+            // 5. Process video to extract template (BACKGROUND - don't wait)
+            // This runs in background so the doctor can continue working
+            setTemplateProgress('Template will be extracted in background...')
+            processVideoForTemplate(exerciseData.id, publicUrl)
+            await new Promise(resolve => setTimeout(resolve, 500))
+
+            // 6. Assign to patient
             const { error } = await supabase.from('patient_exercises').insert([{
                 patient_id: selectedPatient.id,
                 exercise_id: exerciseData.id,
@@ -236,12 +257,81 @@ export default function DoctorDashboard() {
                 setSelectedPatient(null)
                 setAssignForm({ exercise_name: '', reps_per_set: 10, sets: 3, notes: '' })
                 setAssignVideoFile(null)
+                setTemplateProgress('')
                 fetchData()
             }
         } catch (err) {
             console.error('Error assigning exercise:', err)
         } finally {
             setAssigningExercise(false)
+        }
+    }
+
+    // Process video to extract pose template
+    const processVideoForTemplate = async (exerciseId: string, videoUrl: string): Promise<boolean> => {
+        try {
+            console.log('Starting template extraction for:', videoUrl)
+
+            // Create a hidden video element
+            const video = document.createElement('video')
+            video.crossOrigin = 'anonymous'
+            video.src = videoUrl
+            video.muted = true
+            video.playsInline = true
+            video.preload = 'auto'
+
+            // Add to DOM temporarily (needed for some browsers)
+            video.style.position = 'absolute'
+            video.style.left = '-9999px'
+            video.style.top = '-9999px'
+            document.body.appendChild(video)
+
+            console.log('Loading video metadata...')
+            await new Promise<void>((resolve, reject) => {
+                video.onloadeddata = () => {
+                    console.log('Video loaded. Duration:', video.duration, 'Size:', video.videoWidth, 'x', video.videoHeight)
+                    resolve()
+                }
+                video.onerror = (e) => {
+                    console.error('Video load error:', e)
+                    reject(new Error('Failed to load video - may be a CORS issue'))
+                }
+                video.load()
+            })
+
+            setTemplateProgress(`Video loaded (${video.duration.toFixed(1)}s). Extracting poses...`)
+
+            // Import template extractor dynamically
+            const { extractTemplateFromVideo, saveTemplateToDatabase } = await import('@/lib/templateExtractor')
+
+            // Extract template
+            console.log('Starting pose extraction...')
+            const template = await extractTemplateFromVideo(video, 500)
+            console.log('Extraction complete. Template:', template)
+
+            // Clean up video
+            document.body.removeChild(video)
+
+            if (template && template.phases.length > 0) {
+                // Save to database
+                console.log('Saving template to database...')
+                const saved = await saveTemplateToDatabase(exerciseId, template)
+                console.log('Template saved:', saved)
+                return saved
+            } else {
+                console.error('No template extracted')
+                // Mark as error
+                await supabase.from('exercise_templates')
+                    .update({ status: 'error', error_message: 'Failed to extract poses from video' })
+                    .eq('exercise_id', exerciseId)
+                return false
+            }
+        } catch (err) {
+            console.error('Template extraction error:', err)
+            await supabase.from('exercise_templates')
+                .update({ status: 'error', error_message: String(err) })
+                .eq('exercise_id', exerciseId)
+            return false
         }
     }
 
@@ -253,7 +343,7 @@ export default function DoctorDashboard() {
     const saveDietPlan = async () => {
         if (!selectedPatient) return
         setSavingDiet(true)
-        
+
         const { error } = await supabase
             .from('users')
             .update({ diet_plan: dietPlanContent })
@@ -263,7 +353,7 @@ export default function DoctorDashboard() {
             setShowAssignDiet(false)
             setDietPlanContent('')
             setSelectedPatient(null)
-            fetchData() 
+            fetchData()
         } else {
             console.error('Error saving diet plan:', error)
         }
@@ -317,6 +407,7 @@ Dinner:
     }
 
     return (
+<<<<<<< HEAD
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 text-slate-900 dark:text-white transition-colors duration-500 font-sans">
             <Sidebar 
                 user={user} 
@@ -332,6 +423,73 @@ Dinner:
                 <div className="flex items-center gap-3">
                      <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 dark:text-slate-300">
                         <Menu size={24} />
+=======
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 text-slate-900 dark:text-white flex transition-colors duration-500">
+            {/* Mobile Menu Overlay */}
+            {mobileMenuOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 md:hidden"
+                    onClick={() => setMobileMenuOpen(false)}
+                />
+            )}
+
+            {/* Sidebar */}
+            <aside className={`
+                fixed md:relative z-50 h-screen
+                w-64 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl border-r border-slate-200 dark:border-white/10 
+                flex flex-col transition-all duration-300
+                ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+            `}>
+                <div className="p-6 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Activity size={28} className="text-cyan-600 dark:text-cyan-400" />
+                        <span className="text-xl font-bold bg-gradient-to-r from-cyan-600 to-teal-500 dark:from-cyan-400 dark:to-teal-400 bg-clip-text text-transparent">
+                            PhysioFlow
+                        </span>
+                    </div>
+                    <button
+                        className="md:hidden p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg"
+                        onClick={() => setMobileMenuOpen(false)}
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <nav className="flex-1 p-4 overflow-y-auto">
+                    {sidebarItems.map(item => (
+                        <button
+                            key={item.id}
+                            onClick={() => {
+                                setActiveTab(item.id)
+                                setMobileMenuOpen(false)
+                            }}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl mb-2 transition-all ${activeTab === item.id
+                                ? 'bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 dark:border-cyan-500/30'
+                                : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300'
+                                }`}
+                        >
+                            <span className="text-xl">{item.icon}</span>
+                            <span className="font-medium">{item.label}</span>
+                        </button>
+                    ))}
+                </nav>
+
+                <div className="p-4 border-t border-slate-200 dark:border-white/10">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-500 to-teal-500 flex items-center justify-center font-bold text-white">
+                            {user?.name?.charAt(0) || 'D'}
+                        </div>
+                        <div>
+                            <p className="font-medium text-sm text-slate-900 dark:text-white">Dr. {user?.name}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Doctor</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleLogout}
+                        className="w-full px-4 py-2 border border-slate-200 dark:border-white/20 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-500/10 hover:border-red-200 dark:hover:border-red-500 hover:text-red-600 dark:hover:text-red-400 transition-all text-sm"
+                    >
+                        Logout
+>>>>>>> e0ce071137dd3a176e33755f69161c74ee388e8f
                     </button>
                     <span className="font-bold text-lg bg-gradient-to-r from-cyan-600 to-teal-500 dark:from-cyan-400 dark:to-teal-400 bg-clip-text text-transparent">
                         PhysioFlow
@@ -341,19 +499,42 @@ Dinner:
             </div>
 
             {/* Main Content */}
+<<<<<<< HEAD
             <main className="md:ml-64 p-4 md:p-8 pt-20 md:pt-8 overflow-auto relative transition-colors duration-500 min-h-screen">
                 <ThemeToggle className="hidden md:flex absolute top-6 right-8 z-50" />
+=======
+            <main className="flex-1 md:ml-0 p-4 sm:p-6 lg:p-8 overflow-auto relative transition-colors duration-500 min-h-screen">
+                {/* Mobile Header */}
+                <div className="md:hidden flex items-center justify-between mb-4 pb-4 border-b border-slate-200 dark:border-white/10">
+                    <button
+                        onClick={() => setMobileMenuOpen(true)}
+                        className="p-2 bg-slate-100 dark:bg-white/10 rounded-lg"
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div className="flex items-center gap-2">
+                        <Activity size={24} className="text-cyan-600 dark:text-cyan-400" />
+                        <span className="font-bold text-cyan-600 dark:text-cyan-400">PhysioFlow</span>
+                    </div>
+                    <ThemeToggle />
+                </div>
+                <ThemeToggle className="hidden md:block absolute top-6 right-8 z-50" />
+>>>>>>> e0ce071137dd3a176e33755f69161c74ee388e8f
                 {/* Dashboard Tab */}
                 {activeTab === 'dashboard' && (
-                    <div className="space-y-6">
+                    <div className="space-y-4 sm:space-y-6">
                         {/* Welcome Banner */}
-                        <div className="relative overflow-hidden p-8 bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 rounded-3xl">
+                        <div className="relative overflow-hidden p-4 sm:p-8 bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 rounded-2xl sm:rounded-3xl">
                             <div className="absolute inset-0 opacity-20">
                                 <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.2) 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
                             </div>
                             <div className="relative z-10">
-                                <h1 className="text-4xl font-bold mb-2">Welcome back, Dr. {user?.name}! </h1>
-                                <p className="text-white/80 text-lg">Manage your patients and exercises from your personalized dashboard</p>
+                                <h1 className="text-2xl sm:text-4xl font-bold mb-2">Welcome back, Dr. {user?.name}! </h1>
+                                <p className="text-white/80 text-sm sm:text-lg">Manage your patients and exercises from your personalized dashboard</p>
                             </div>
                             <div className="absolute right-8 bottom-0 text-[120px] opacity-20">🩺</div>
                         </div>
@@ -633,7 +814,7 @@ Dinner:
                                                         {patientAssignments.slice(0, 3).map(assignment => (
                                                             <span key={assignment.id} className="flex items-center gap-1.5 px-2 py-1 text-xs bg-teal-500/20 border border-teal-500/30 rounded text-teal-300">
                                                                 {getExerciseName(assignment.exercise_id)}
-                                                                <button 
+                                                                <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation()
                                                                         removeAssignment(assignment.id)
@@ -675,7 +856,7 @@ Dinner:
                                                 <button
                                                     onClick={() => {
                                                         setSelectedPatient(patient)
-                                                        setDietPlanContent(patient.diet_plan || '') 
+                                                        setDietPlanContent(patient.diet_plan || '')
                                                         setShowAssignDiet(true)
                                                     }}
                                                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl font-semibold hover:bg-white/10 transition-all flex items-center justify-center"
@@ -938,21 +1119,65 @@ Dinner:
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium mb-2">Sets</label>
-                                        <input
-                                            type="number"
-                                            value={assignForm.sets}
-                                            onChange={e => setAssignForm({ ...assignForm, sets: parseInt(e.target.value) })}
-                                            className="w-full px-4 py-3 bg-slate-700 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500"
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                value={assignForm.sets}
+                                                onChange={e => {
+                                                    const val = parseInt(e.target.value)
+                                                    setAssignForm({ ...assignForm, sets: isNaN(val) ? 1 : Math.max(1, val) })
+                                                }}
+                                                className="w-full px-4 py-3 pr-12 bg-slate-700 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500 text-center text-lg font-bold"
+                                                min="1"
+                                            />
+                                            <div className="absolute right-1 top-1 bottom-1 flex flex-col">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAssignForm({ ...assignForm, sets: assignForm.sets + 1 })}
+                                                    className="flex-1 px-2 bg-slate-600 hover:bg-cyan-500 rounded-t-lg flex items-center justify-center text-xs transition-colors"
+                                                >
+                                                    ▲
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAssignForm({ ...assignForm, sets: Math.max(1, assignForm.sets - 1) })}
+                                                    className="flex-1 px-2 bg-slate-600 hover:bg-cyan-500 rounded-b-lg flex items-center justify-center text-xs transition-colors border-t border-slate-500"
+                                                >
+                                                    ▼
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium mb-2">Reps per Set</label>
-                                        <input
-                                            type="number"
-                                            value={assignForm.reps_per_set}
-                                            onChange={e => setAssignForm({ ...assignForm, reps_per_set: parseInt(e.target.value) })}
-                                            className="w-full px-4 py-3 bg-slate-700 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500"
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                value={assignForm.reps_per_set}
+                                                onChange={e => {
+                                                    const val = parseInt(e.target.value)
+                                                    setAssignForm({ ...assignForm, reps_per_set: isNaN(val) ? 1 : Math.max(1, val) })
+                                                }}
+                                                className="w-full px-4 py-3 pr-12 bg-slate-700 border border-white/10 rounded-xl focus:outline-none focus:border-cyan-500 text-center text-lg font-bold"
+                                                min="1"
+                                            />
+                                            <div className="absolute right-1 top-1 bottom-1 flex flex-col">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAssignForm({ ...assignForm, reps_per_set: assignForm.reps_per_set + 1 })}
+                                                    className="flex-1 px-2 bg-slate-600 hover:bg-cyan-500 rounded-t-lg flex items-center justify-center text-xs transition-colors"
+                                                >
+                                                    ▲
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAssignForm({ ...assignForm, reps_per_set: Math.max(1, assignForm.reps_per_set - 1) })}
+                                                    className="flex-1 px-2 bg-slate-600 hover:bg-cyan-500 rounded-b-lg flex items-center justify-center text-xs transition-colors border-t border-slate-500"
+                                                >
+                                                    ▼
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div>
@@ -1003,7 +1228,7 @@ Dinner:
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center mb-2">
                                     <label className="block text-sm font-medium">Diet Details</label>
-                                    <button 
+                                    <button
                                         onClick={() => setDietPlanContent(indianDietTemplate)}
                                         className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
                                     >
@@ -1046,7 +1271,7 @@ Dinner:
                                 <h2 className="text-2xl font-bold flex items-center gap-2">
                                     <span className="text-3xl">📋</span> {selectedPatient.name}'s Exercises
                                 </h2>
-                                <button 
+                                <button
                                     onClick={() => setShowViewAllAssignments(false)}
                                     className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                                 >
@@ -1072,8 +1297,9 @@ Dinner:
                                             <div className="flex items-start justify-between gap-3 mb-2">
                                                 <div>
                                                     <h3 className="font-semibold text-lg">{exercise.name}</h3>
+
                                                 </div>
-                                                <button 
+                                                <button
                                                     onClick={() => removeAssignment(assignment.id)}
                                                     className="p-2 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition-colors"
                                                     title="Remove assignment"

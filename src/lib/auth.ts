@@ -105,13 +105,44 @@ export async function signOut() {
 
 // Get current logged-in user
 export async function getCurrentUser(): Promise<User | null> {
-    if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('physioflow_user')
-        if (stored) {
-            return JSON.parse(stored)
-        }
+    // Only run on client side
+    if (typeof window === 'undefined') {
+        return null
     }
-    return null
+
+    try {
+        const stored = localStorage.getItem('physioflow_user')
+        if (!stored) {
+            return null
+        }
+
+        const user = JSON.parse(stored)
+
+        // Verify user still exists in database (optional refresh)
+        // Skip verification for performance - trust localStorage
+        // If you want stricter security, uncomment below:
+        /*
+        const { data, error } = await supabase
+            .from('users')
+            .select('id, email, name, role, phone')
+            .eq('id', user.id)
+            .single()
+
+        if (error || !data) {
+            localStorage.removeItem('physioflow_user')
+            return null
+        }
+
+        // Update localStorage with fresh data
+        localStorage.setItem('physioflow_user', JSON.stringify(data))
+        return data
+        */
+
+        return user
+    } catch (e) {
+        console.error('Error getting current user:', e)
+        return null
+    }
 }
 
 // Check if user is authenticated

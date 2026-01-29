@@ -53,111 +53,132 @@ export default function DoctorProgress({ doctorId }: DoctorProgressProps) {
   const loadReportsData = async () => {
     setLoading(true);
 
-    // Fetch only patients assigned to this doctor
-    let query = supabase
-      .from('users')
-      .select('id, name, email')
-      .eq('role', 'patient');
+    try {
+      // Fetch only patients assigned to this doctor
+      let query = supabase
+        .from('users')
+        .select('id, name, email')
+        .eq('role', 'patient');
 
-    // Filter by doctor_id if provided
-    if (doctorId) {
-      query = query.eq('doctor_id', doctorId);
-    }
+      // Filter by doctor_id if provided
+      if (doctorId) {
+        query = query.eq('doctor_id', doctorId);
+      }
 
-    const { data: patientsData } = await query;
+      const { data: patientsData, error: patientsError } = await query;
 
-    if (patientsData) {
-      const patientsWithStats = await Promise.all(
-        patientsData.map(async (patient) => {
-          // Get sessions for this patient
-          const { data: sessionData } = await supabase
-            .from('sessions')
-            .select('accuracy, started_at, duration')
-            .eq('patient_id', patient.id)
-            .order('started_at', { ascending: false });
+      if (patientsError) {
+        console.warn('Error fetching patients:', patientsError);
+      }
 
-          const sessions = sessionData || [];
-          const avgAccuracy = sessions.length > 0
-            ? Math.round(sessions.reduce((sum, s) => sum + (s.accuracy || 0), 0) / sessions.length)
-            : 0;
+      if (patientsData) {
+        const patientsWithStats = await Promise.all(
+          patientsData.map(async (patient) => {
+            // Get sessions for this patient (handle if table doesn't exist)
+            let sessions: any[] = [];
+            try {
+              const { data: sessionData, error } = await supabase
+                .from('sessions')
+                .select('accuracy, started_at, duration')
+                .eq('patient_id', patient.id)
+                .order('started_at', { ascending: false });
 
-          const lastSession = sessions[0]?.started_at || null;
-
-          // Determine status
-          let status: PatientReport['status'] = 'inactive';
-          if (sessions.length > 0) {
-            const daysSinceLastSession = lastSession
-              ? Math.floor((Date.now() - new Date(lastSession).getTime()) / (1000 * 60 * 60 * 24))
-              : 999;
-
-            if (daysSinceLastSession > 7) {
-              status = 'needs_attention';
-            } else if (avgAccuracy >= 80) {
-              status = 'excellent';
-            } else if (avgAccuracy >= 60) {
-              status = 'good';
-            } else {
-              status = 'needs_attention';
+              if (!error && sessionData) {
+                sessions = sessionData;
+              }
+            } catch (e) {
+              // Sessions table might not exist - that's okay
             }
-          }
 
-          return {
-            id: patient.id,
-            name: patient.name,
-            email: patient.email,
-            avgAccuracy,
-            totalSessions: sessions.length,
-            lastSessionDate: lastSession,
-            exercisesCompleted: sessions.length,
-            status
-          };
-        })
-      );
+            const avgAccuracy = sessions.length > 0
+              ? Math.round(sessions.reduce((sum, s) => sum + (s.accuracy || 0), 0) / sessions.length)
+              : 0;
 
-      setPatients(patientsWithStats);
-    }
+            const lastSession = sessions[0]?.started_at || null;
 
-    // Fetch recent sessions
-    const { data: recentSessions } = await supabase
-      .from('sessions')
-      .select(`
-        id,
-        accuracy,
-        duration,
-        started_at,
-        patient_id,
-        exercise_id
-      `)
-      .order('started_at', { ascending: false })
-      .limit(20);
+            // Determine status
+            let status: PatientReport['status'] = 'inactive';
+            if (sessions.length > 0) {
+              const daysSinceLastSession = lastSession
+                ? Math.floor((Date.now() - new Date(lastSession).getTime()) / (1000 * 60 * 60 * 24))
+                : 999;
 
-    if (recentSessions) {
-      const sessionsWithDetails = await Promise.all(
-        recentSessions.map(async (session) => {
-          const { data: patient } = await supabase
-            .from('users')
-            .select('name')
-            .eq('id', session.patient_id)
-            .single();
+              if (daysSinceLastSession > 7) {
+                status = 'needs_attention';
+              } else if (avgAccuracy >= 80) {
+                status = 'excellent';
+              } else if (avgAccuracy >= 60) {
+                status = 'good';
+              } else {
+                status = 'needs_attention';
+              }
+            }
 
-          const { data: exercise } = await supabase
-            .from('exercises')
-            .select('name')
-            .eq('id', session.exercise_id)
-            .single();
+            return {
+              id: patient.id,
+              name: patient.name,
+              email: patient.email,
+              avgAccuracy,
+              totalSessions: sessions.length,
+              lastSessionDate: lastSession,
+              exercisesCompleted: sessions.length,
+              status
+            };
+          })
+        );
 
-          return {
-            id: session.id,
-            patientName: patient?.name || 'Unknown',
-            exerciseName: exercise?.name || 'Exercise',
-            accuracy: session.accuracy || 0,
-            duration: session.duration || 0,
-            date: session.started_at
-          };
-        })
-      );
+        setPatients(patientsWithStats);
+      }
 
-      setSessions(sessionsWithDetails);
+      // Fetch recent sessions (handle if table doesn't exist)
+      try {
+        const { data: recentSessions, error } = await supabase
+          .from('sessions')
+          .select(`
+            id,
+            accuracy,
+            duration,
+            started_at,
+            patient_id,
+            exercise_id
+          `)
+          .order('started_at', { ascending: false })
+          .limit(20);
+
+        if (!error && recentSessions) {
+          const sessionsWithDetails = await Promise.all(
+            recentSessions.map(async (session) => {
+              const { data: patient } = await supabase
+                .from('users')
+                .select('name')
+                .eq('id', session.patient_id)
+                .single();
+
+              const { data: exercise } = await supabase
+                .from('exercises')
+                .select('name')
+                .eq('id', session.exercise_id)
+                .single();
+
+              return {
+                id: session.id,
+                patientName: patient?.name || 'Unknown',
+                exerciseName: exercise?.name || 'Exercise',
+                accuracy: session.accuracy || 0,
+                duration: session.duration || 0,
+                date: session.started_at
+              };
+            })
+          );
+
+          setSessions(sessionsWithDetails);
+        }
+      } catch (e) {
+        // Sessions table might not exist - that's okay
+        console.log('Sessions table not available');
+      }
+    } catch (err) {
+      console.error('Error loading reports:', err);
     }
 
     setLoading(false);
@@ -291,8 +312,8 @@ export default function DoctorProgress({ doctorId }: DoctorProgressProps) {
                       <div className="w-16 h-2 bg-slate-700 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full ${patient.avgAccuracy >= 80 ? 'bg-green-500' :
-                              patient.avgAccuracy >= 60 ? 'bg-cyan-500' :
-                                patient.avgAccuracy >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                            patient.avgAccuracy >= 60 ? 'bg-cyan-500' :
+                              patient.avgAccuracy >= 40 ? 'bg-yellow-500' : 'bg-red-500'
                             }`}
                           style={{ width: `${patient.avgAccuracy}%` }}
                         ></div>
@@ -349,7 +370,7 @@ export default function DoctorProgress({ doctorId }: DoctorProgressProps) {
               <div className="flex items-center gap-6 text-sm">
                 <div className="text-right">
                   <p className={`font-bold ${session.accuracy >= 80 ? 'text-green-400' :
-                      session.accuracy >= 60 ? 'text-cyan-400' : 'text-yellow-400'
+                    session.accuracy >= 60 ? 'text-cyan-400' : 'text-yellow-400'
                     }`}>{session.accuracy}%</p>
                   <p className="text-slate-500">Accuracy</p>
                 </div>
