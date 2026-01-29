@@ -59,11 +59,27 @@ export default function ExercisePage() {
         }
     }, [user])
 
+    // Auto-stop session when goal is reached
+    useEffect(() => {
+        if (sessionStarted && repCount > 0) {
+            const targetReps = assignments[currentIndex]?.reps_per_set || 10
+            if (repCount >= targetReps) {
+                // Delay a bit to show celebration, then stop
+                const timer = setTimeout(() => {
+                    stopSession()
+                }, 2000)
+                return () => clearTimeout(timer)
+            }
+        }
+    }, [repCount, sessionStarted, currentIndex, assignments])
+
     useEffect(() => {
         let mounted = true
         let renderer: any = null
-        let analyzer: any = null
         let animationId: number
+        let exerciseTemplate: any = null
+        let phaseSequence: string[] = []
+        let lastPhase: string = ''
 
         const initEngine = async () => {
             const videoEl = videoRef.current
@@ -75,8 +91,7 @@ export default function ExercisePage() {
             try {
                 const { PoseEngine } = await import('@/pose-detection/poseEngine')
                 const { PoseRenderer } = await import('@/pose-detection/poseRenderer.js')
-                const { PoseAnalyzer } = await import('@/pose-detection/poseAnalyzer.js')
-                const { defaultExercise } = await import('@/pose-detection/exerciseConfig.js')
+                const { loadTemplateFromDatabase, extractAngles, matchPoseToPhase } = await import('@/lib/templateExtractor')
 
                 if (!mounted) return
 
@@ -86,23 +101,33 @@ export default function ExercisePage() {
                 poseEngineRef.current = new PoseEngine(videoEl)
                 await poseEngineRef.current.init()
 
+                // Load template from database
                 const currentExercise = assignments[currentIndex]?.exercise
+                console.log('Current exercise:', currentExercise?.id, currentExercise?.name)
+
+                if (currentExercise?.id) {
+                    console.log('Loading template for exercise ID:', currentExercise.id)
+                    exerciseTemplate = await loadTemplateFromDatabase(currentExercise.id)
+
+                    if (exerciseTemplate && exerciseTemplate.phases.length > 0) {
+                        console.log('✅ TEMPLATE LOADED SUCCESSFULLY!')
+                        console.log('Phases:', JSON.stringify(exerciseTemplate.phases, null, 2))
+                        console.log('Rep sequence:', exerciseTemplate.repSequence)
+                        console.log('Tolerance:', exerciseTemplate.toleranceDegrees, 'degrees')
+                    } else {
+                        console.warn('⚠️ NO TEMPLATE FOUND - using fallback (visibility-based) counting')
+                    }
+                } else {
+                    console.warn('No exercise ID available')
+                }
+
+                // Reference video setup (for visual guide only)
                 if (referenceVideoRef.current && currentExercise?.video_url) {
                     referenceVideoRef.current.src = currentExercise.video_url
                     referenceVideoRef.current.load()
-
-                    await new Promise((resolve) => {
-                        referenceVideoRef.current!.onloadedmetadata = () => resolve(true)
-                        referenceVideoRef.current!.onerror = () => resolve(false)
-                    })
-
-                    if (mounted && referenceVideoRef.current.readyState >= 1) {
-                        referencePoseEngineRef.current = new PoseEngine(referenceVideoRef.current)
-                        await referencePoseEngineRef.current.init()
-                        try {
-                            await referenceVideoRef.current.play()
-                        } catch (e) { }
-                    }
+                    try {
+                        await referenceVideoRef.current.play()
+                    } catch (e) { }
                 }
 
                 if (!mounted) return
@@ -113,7 +138,6 @@ export default function ExercisePage() {
                 }
 
                 renderer = new PoseRenderer(canvasEl)
-                analyzer = new PoseAnalyzer(defaultExercise)
 
                 if (containerRef.current) {
                     const rect = containerRef.current.getBoundingClientRect()
@@ -122,7 +146,6 @@ export default function ExercisePage() {
 
                 let poseHoldFrames = 0
                 let repCounted = false
-                let currentReferencePose: any = null
                 const targetReps = assignments[currentIndex]?.reps_per_set || 10
 
                 const detect = async () => {
@@ -130,13 +153,6 @@ export default function ExercisePage() {
 
                     try {
                         const userPoses = await poseEngineRef.current.estimate()
-
-                        if (referencePoseEngineRef.current && referenceVideoRef.current && referenceVideoRef.current.readyState >= 2) {
-                            const refPoses = await referencePoseEngineRef.current.estimate()
-                            if (refPoses?.length) {
-                                currentReferencePose = refPoses[0]
-                            }
-                        }
 
                         if (userPoses?.length) {
                             const userPose = userPoses[0]
@@ -165,37 +181,80 @@ export default function ExercisePage() {
                                     y: kp.y * scale - offsetY
                                 }))
 
+                                // Check if user is visible
+                                const goodKeypoints = userPose.keypoints.filter(
+                                    (kp: any) => kp.score >= 0.3
+                                ).length
+                                const isVisible = goodKeypoints >= 8
+
                                 let isCorrect = false
-                                if (currentReferencePose) {
-                                    const comparison = analyzer.comparePosesWithFeedback(
-                                        userPose.keypoints,
-                                        currentReferencePose.keypoints
-                                    )
-                                    isCorrect = comparison.isCorrect
+                                let currentPhase = ''
+
+                                // TEMPLATE-BASED COMPARISON
+                                if (exerciseTemplate && exerciseTemplate.phases.length > 0) {
+                                    // Convert keypoints to landmark map
+                                    const landmarks: Record<string, any> = {}
+                                    for (const kp of userPose.keypoints) {
+                                        if (kp.name) {
+                                            landmarks[kp.name] = {
+                                                x: kp.x / video.width,
+                                                y: kp.y / video.height,
+                                                visibility: kp.score
+                                            }
+                                        }
+                                    }
+
+                                    // Extract user's angles
+                                    const userAngles = extractAngles(landmarks)
+
+                                    // Match to template phase
+                                    const match = matchPoseToPhase(userAngles, exerciseTemplate)
+                                    isCorrect = match.isMatch
+                                    currentPhase = match.phase || ''
+
+                                    // Track phase sequence for rep counting
+                                    if (currentPhase && currentPhase !== lastPhase) {
+                                        phaseSequence.push(currentPhase)
+                                        lastPhase = currentPhase
+
+                                        // Check if rep sequence is complete
+                                        const repSeq = exerciseTemplate.repSequence || ['start', 'peak', 'start']
+                                        if (phaseSequence.length >= repSeq.length) {
+                                            const tail = phaseSequence.slice(-repSeq.length)
+                                            if (JSON.stringify(tail) === JSON.stringify(repSeq)) {
+                                                // Rep completed!
+                                                if (!repCounted && repCount < targetReps) {
+                                                    setRepCount(prev => prev + 1)
+                                                    repCounted = true
+                                                    if (renderer) renderer.triggerCelebration()
+
+                                                    setTimeout(() => {
+                                                        repCounted = false
+                                                        phaseSequence = []
+                                                    }, 800)
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Debug log periodically
+                                    if (Math.random() < 0.02) {
+                                        console.log('Phase:', currentPhase, 'Match:', match.similarity.toFixed(2))
+                                    }
                                 } else {
-                                    const analysis = analyzer.evaluate(userPose.keypoints)
-                                    isCorrect = analysis.allSegmentsHit && analysis.accuracy >= 0.60
+                                    // No template available - DON'T count reps automatically
+                                    // Just show the skeleton but no automatic counting
+                                    isCorrect = isVisible
+
+                                    // Log warning periodically
+                                    if (Math.random() < 0.01) {
+                                        console.warn('⚠️ No template - rep counting disabled. Please ensure template was saved.')
+                                    }
+                                    // DO NOT count reps when no template exists
                                 }
 
                                 if (renderer) {
                                     renderer.renderSimple(scaledKeypoints, isCorrect)
-                                }
-
-                                if (isCorrect && repCount < targetReps) {
-                                    poseHoldFrames++
-                                    if (poseHoldFrames >= 10 && !repCounted) {
-                                        setRepCount(prev => {
-                                            const next = prev + 1
-                                            return next
-                                        })
-                                        repCounted = true
-                                        if (renderer) renderer.triggerCelebration()
-                                    }
-                                } else {
-                                    if (repCounted && poseHoldFrames > 0) {
-                                        repCounted = false
-                                    }
-                                    poseHoldFrames = 0
                                 }
                             }
                         }
@@ -355,7 +414,7 @@ export default function ExercisePage() {
                             muted
                             playsInline
                             crossOrigin="anonymous"
-                            className="w-full aspect-video object-cover"
+                            className="w-full aspect-video object-contain bg-black"
                         />
                         <div className="p-3">
                             <p className="text-xs text-slate-400">Exercise Demo</p>
@@ -420,8 +479,8 @@ export default function ExercisePage() {
                                                         {assignment.reps_per_set} reps
                                                     </span>
                                                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold uppercase ${assignment.exercise?.difficulty === 'easy' ? 'bg-green-500/10 text-green-500' :
-                                                            assignment.exercise?.difficulty === 'hard' ? 'bg-red-500/10 text-red-500' :
-                                                                'bg-yellow-500/10 text-yellow-500'
+                                                        assignment.exercise?.difficulty === 'hard' ? 'bg-red-500/10 text-red-500' :
+                                                            'bg-yellow-500/10 text-yellow-500'
                                                         }`}>
                                                         {assignment.exercise?.difficulty}
                                                     </span>

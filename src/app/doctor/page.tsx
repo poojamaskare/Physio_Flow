@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser, signOut, User } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
@@ -73,6 +73,11 @@ export default function DoctorDashboard() {
     const [uploadingVideo, setUploadingVideo] = useState(false)
     const [uploadProgress, setUploadProgress] = useState(0)
     const [videoFile, setVideoFile] = useState<File | null>(null)
+
+    // Template processing states
+    const [processingTemplate, setProcessingTemplate] = useState(false)
+    const [templateProgress, setTemplateProgress] = useState('')
+    const hiddenVideoRef = useRef<HTMLVideoElement>(null)
 
     useEffect(() => {
         checkAuth()
@@ -219,7 +224,21 @@ export default function DoctorDashboard() {
                 return
             }
 
-            // 4. Assign to patient
+            // 4. Create initial template entry (marked as processing)
+            setTemplateProgress('Creating template entry...')
+            await supabase.from('exercise_templates').insert([{
+                exercise_id: exerciseData.id,
+                phases: [],
+                status: 'processing'
+            }])
+
+            // 5. Process video to extract template (BACKGROUND - don't wait)
+            // This runs in background so the doctor can continue working
+            setTemplateProgress('Template will be extracted in background...')
+            processVideoForTemplate(exerciseData.id, publicUrl)
+            await new Promise(resolve => setTimeout(resolve, 500))
+
+            // 6. Assign to patient
             const { error } = await supabase.from('patient_exercises').insert([{
                 patient_id: selectedPatient.id,
                 exercise_id: exerciseData.id,
@@ -234,12 +253,81 @@ export default function DoctorDashboard() {
                 setSelectedPatient(null)
                 setAssignForm({ exercise_name: '', reps_per_set: 10, sets: 3, notes: '' })
                 setAssignVideoFile(null)
+                setTemplateProgress('')
                 fetchData()
             }
         } catch (err) {
             console.error('Error assigning exercise:', err)
         } finally {
             setAssigningExercise(false)
+        }
+    }
+
+    // Process video to extract pose template
+    const processVideoForTemplate = async (exerciseId: string, videoUrl: string): Promise<boolean> => {
+        try {
+            console.log('Starting template extraction for:', videoUrl)
+
+            // Create a hidden video element
+            const video = document.createElement('video')
+            video.crossOrigin = 'anonymous'
+            video.src = videoUrl
+            video.muted = true
+            video.playsInline = true
+            video.preload = 'auto'
+
+            // Add to DOM temporarily (needed for some browsers)
+            video.style.position = 'absolute'
+            video.style.left = '-9999px'
+            video.style.top = '-9999px'
+            document.body.appendChild(video)
+
+            console.log('Loading video metadata...')
+            await new Promise<void>((resolve, reject) => {
+                video.onloadeddata = () => {
+                    console.log('Video loaded. Duration:', video.duration, 'Size:', video.videoWidth, 'x', video.videoHeight)
+                    resolve()
+                }
+                video.onerror = (e) => {
+                    console.error('Video load error:', e)
+                    reject(new Error('Failed to load video - may be a CORS issue'))
+                }
+                video.load()
+            })
+
+            setTemplateProgress(`Video loaded (${video.duration.toFixed(1)}s). Extracting poses...`)
+
+            // Import template extractor dynamically
+            const { extractTemplateFromVideo, saveTemplateToDatabase } = await import('@/lib/templateExtractor')
+
+            // Extract template
+            console.log('Starting pose extraction...')
+            const template = await extractTemplateFromVideo(video, 500)
+            console.log('Extraction complete. Template:', template)
+
+            // Clean up video
+            document.body.removeChild(video)
+
+            if (template && template.phases.length > 0) {
+                // Save to database
+                console.log('Saving template to database...')
+                const saved = await saveTemplateToDatabase(exerciseId, template)
+                console.log('Template saved:', saved)
+                return saved
+            } else {
+                console.error('No template extracted')
+                // Mark as error
+                await supabase.from('exercise_templates')
+                    .update({ status: 'error', error_message: 'Failed to extract poses from video' })
+                    .eq('exercise_id', exerciseId)
+                return false
+            }
+        } catch (err) {
+            console.error('Template extraction error:', err)
+            await supabase.from('exercise_templates')
+                .update({ status: 'error', error_message: String(err) })
+                .eq('exercise_id', exerciseId)
+            return false
         }
     }
 
