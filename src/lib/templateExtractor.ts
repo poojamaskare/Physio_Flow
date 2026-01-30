@@ -416,7 +416,7 @@ export async function loadTemplateFromDatabase(
 /**
  * Compare user's current angles to template phases
  * Returns the best matching phase and similarity score
- * Now requires ALL angles to match for multi-body-part exercises
+ * STRICT matching - only counts when form is correct
  */
 export function matchPoseToPhase(
     userAngles: Record<string, number>,
@@ -437,18 +437,19 @@ export function matchPoseToPhase(
                 totalAngles++
                 const diff = Math.abs(userAngle - targetAngle)
 
-                // Use a slightly relaxed tolerance for matching (40 degrees)
-                const effectiveTolerance = Math.max(template.toleranceDegrees, 40)
+                // Use the ACTUAL tolerance from template (stricter matching)
+                const effectiveTolerance = template.toleranceDegrees || 30
 
                 if (diff <= effectiveTolerance) {
                     matchingAngles++
                 } else {
                     allMatched = false
+                    // Uncomment for debugging:
                     // console.log(`Angle mismatch: ${angleName} - user: ${userAngle}°, target: ${targetAngle}°, diff: ${diff}°`)
                 }
             } else {
-                // If we can't detect this angle, don't count it as a failure
-                // (could be visibility issue)
+                // If we can't detect this angle, count it as a partial failure
+                allMatched = false
             }
         }
 
@@ -467,14 +468,14 @@ export function matchPoseToPhase(
         }
     }
 
-    // For exercises to count, we need high similarity
-    // If phase only has 1-2 angles, require 100% match
-    // If phase has 3+ angles, require at least 80% match
-    const requiredSimilarity = 0.8
+    // STRICT: Require 90% similarity for a match
+    // This means form must be very close to the reference video
+    const requiredSimilarity = 0.9
 
     return {
         phase: bestPhase,
         similarity: bestSimilarity,
-        isMatch: bestAllMatched || bestSimilarity >= requiredSimilarity
+        // Only match if similarity is high enough AND we have a phase
+        isMatch: bestPhase !== null && (bestAllMatched || bestSimilarity >= requiredSimilarity)
     }
 }

@@ -8,6 +8,7 @@ import Sidebar from '../components/Sidebar'
 import ThemeToggle from '../components/ThemeToggle'
 import Link from 'next/link'
 import { FileText, Flame, BarChart3, Phone, Menu, Activity } from 'lucide-react'
+import ProgressChart from '../components/ProgressChart'
 
 interface Exercise {
     id: string
@@ -250,6 +251,9 @@ function PatientDashboardContent() {
                     </p>
                 </div>
 
+                {/* Weekly Activity Chart */}
+                {user?.id && <ProgressChart userId={user.id} />}
+
                 <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-white/5">
                     <h3 className="font-bold text-lg mb-4 text-slate-900 dark:text-white">Exercise History</h3>
                     {assignments.length > 0 ? (
@@ -264,8 +268,8 @@ function PatientDashboardContent() {
                                         </div>
                                     </div>
                                     <span className={`px-3 py-1 rounded-lg text-xs font-bold ${assignment.status === 'completed' || assignment.completed
-                                            ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400'
-                                            : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                                        ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400'
+                                        : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
                                         }`}>
                                         {assignment.status === 'completed' || assignment.completed ? 'Completed' : 'Pending'}
                                     </span>
@@ -284,17 +288,17 @@ function PatientDashboardContent() {
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white transition-colors duration-300 font-sans">
-            <Sidebar 
-                user={user} 
-                onLogout={handleLogout} 
-                isOpen={isSidebarOpen} 
+            <Sidebar
+                user={user}
+                onLogout={handleLogout}
+                isOpen={isSidebarOpen}
                 onClose={() => setIsSidebarOpen(false)}
             />
 
             {/* Mobile Header */}
             <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-white/10 p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                     <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 dark:text-slate-300">
+                    <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 dark:text-slate-300">
                         <Menu size={24} />
                     </button>
                     <span className="font-bold text-lg bg-gradient-to-r from-cyan-600 to-teal-500 dark:from-cyan-400 dark:to-teal-400 bg-clip-text text-transparent">

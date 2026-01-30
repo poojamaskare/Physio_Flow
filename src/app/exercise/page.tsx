@@ -265,6 +265,12 @@ export default function ExercisePage() {
                                                     repCounted = true
                                                     if (renderer) renderer.triggerCelebration()
 
+                                                    // Voice feedback for rep completion
+                                                    try {
+                                                        const { sayRepComplete } = await import('@/lib/voiceFeedback')
+                                                        sayRepComplete(currentRepCount + 1, targetReps)
+                                                    } catch (e) { /* Voice not supported */ }
+
                                                     setTimeout(() => {
                                                         repCounted = false
                                                         phaseSequence = []
@@ -527,7 +533,7 @@ export default function ExercisePage() {
             ) : (
                 <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen">
                     <div className="hidden md:block">
-                        <Sidebar user={user} onLogout={handleLogout} />
+                        <Sidebar user={user} onLogout={handleLogout} isOpen={true} onClose={() => { }} />
                     </div>
                     <main className="md:ml-64 p-4 sm:p-8 w-full">
                         {/* Mobile header */}
