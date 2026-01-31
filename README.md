@@ -1,4 +1,4 @@
-# Mudra: AI-Powered Physiotherapy Platform
+ AI-Powered Physiotherapy Platform
 
 ## Overview
 Mudra is an advanced tele-rehabilitation platform that uses computer vision and AI to assist patients in performing physiotherapy exercises correctly at home. It allows doctors to assign custom exercises via video, automatically extracts movement templates, and provides patients with real-time feedback on their form, rep counting, and progress tracking.
@@ -40,7 +40,7 @@ The system leverages TensorFlow.js for in-browser pose estimation, ensuring pati
 
 ## Core Logic Explanation
 
-### 1. Template Extraction (`src/lib/templateExtractor.ts`)
+### 1. Template Extraction w
 When a doctor uploads a video:
 1. The system samples frames from the video.
 2. It detects poses in each frame using MoveNet.
