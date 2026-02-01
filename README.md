@@ -1,90 +1,122 @@
-# Mudra: AI-Powered Physiotherapy Platform
+# PhysioFlow 🧠🏃‍♂️  
+**AI-Powered Smart Rehabilitation Platform**
 
-## Overview
-Mudra is an advanced tele-rehabilitation platform that uses computer vision and AI to assist patients in performing physiotherapy exercises correctly at home. It allows doctors to assign custom exercises via video, automatically extracts movement templates, and provides patients with real-time feedback on their form, rep counting, and progress tracking.
+PhysioFlow is an AI-driven physiotherapy and rehabilitation platform designed to help patients perform exercises accurately at home while enabling doctors to monitor progress, manage appointments, and deliver data-driven care.
 
-The system leverages TensorFlow.js for in-browser pose estimation, ensuring patient privacy (video feeds are processed locally) and low latency.
+The platform combines **pose detection**, **real-time feedback**, **exercise analytics**, and an **AI voice call agent powered by Retell AI** to create a seamless digital rehabilitation experience.
 
-## Key Features
+---
 
-### For Doctors
-- **Patient Management**: Add and manage patients, view their adherence and progress.
-- **Custom Exercise Library**: Upload reference videos of specific exercises.
-- **AI Template Extraction**: The system automatically analyzes uploaded videos to identify "Start" and "Peak" movement phases and calculating meaningful joint angles (e.g., elbow flexion, shoulder abduction).
-- **Prescription**: Assign specific sets, reps, and difficulty levels to patients.
+## 🚀 Features
 
-### For Patients
-- **Interactive Exercise Session**: Real-time camera feed with skeleton overlay.
-- **AI Form Correction**: Instant validation of movements against the doctor's reference template.
-- **Auto Rep Counting**: Smart repetition counting based on phase completion (Start -> Peak -> Start).
-- **Voice Feedback**: Real-time audio cues ("Great form!", "Straighten your elbow") to guide the patient.
-- **Progress Tracking**: Weekly activity charts, streaks, and completion statistics.
-- **Gamification**: Visual celebrations and streaks to maintain motivation.
+### 👩‍⚕️ Doctor Dashboard
+- Upload reference exercise videos
+- Configure exercise plans (sets, reps, accuracy thresholds)
+- View patient progress reports and performance analytics
+- Manage appointments and availability
+- Set leave periods with reasons (Active / On Leave status)
+- Access patient exercise history and accuracy trends
 
-## Technical Architecture
+### 🧑‍🦽 Patient Dashboard
+- Guided physiotherapy exercise sessions
+- Real-time posture detection and accuracy scoring
+- Set-wise exercise counting (sets & reps)
+- Instant feedback and completion status
+- Access assigned exercise videos and schedules
+- Voice-based assistance for queries and guidance
 
-### Core Stack
-- **Framework**: Next.js 14+ (App Router, Turbopack)
-- **Language**: TypeScript
-- **Styling**: TailwindCSS (Custom design system, minimal external libraries)
-- **Database & Auth**: Supabase (PostgreSQL, Row Level Security)
-- **Storage**: Supabase Storage (for reference videos)
+---
 
-### AI & Computer Vision
-- **Model**: TensorFlow.js (MoveNet algorithms - Lightning/Thunder variants)
-- **Processing**: Client-side execution (runs in the browser, no video upload to server for inference).
-- **Logic**:
-    - **Angle Extraction**: Calculates vector angles between key body landmarks (shoulders, elbows, hips, knees).
-    - **Phase Matching**: Compares live user angles against stored template phases using weighted similarity scores.
-    - **Smoothing**: Applies temporal smoothing to keypoints to reduce jitter.
+## 🎥 AI Pose Detection
+- Uses **MediaPipe / MoveNet** for real-time pose tracking
+- Compares patient posture with doctor-uploaded reference videos
+- Counts repetitions only when posture accuracy meets the defined threshold
+- Prevents false counts due to incorrect or partial movements
+- Supports mobile and desktop camera input
 
-## Core Logic Explanation
+---
 
-### 1. Template Extraction (`src/lib/templateExtractor.ts`)
-When a doctor uploads a video:
-1. The system samples frames from the video.
-2. It detects poses in each frame using MoveNet.
-3. It calculates min/max angles for relevant joints.
-4. It identifies two key phases:
-   - **Start Phase**: The resting position (e.g., arm down).
-   - **Peak Phase**: The point of maximum contraction/extension (e.g., arm curled up).
-5. It saves these phase definitions (target angles + tolerance) to the database.
+## 📞 AI Voice Call Agent (Powered by Retell AI)
 
-### 2. Live Exercise Engine (`src/app/exercise/page.tsx`)
-During a patient session:
-1. **Detection**: Captures webcam stream and runs MoveNet inference.
-2. **Normalization**: Scales user's body size to match the frame reference.
-3. **Matching**: Compares current angles to the active exercise's template.
-   - **Green Skeleton**: User matches the current target phase (within ~30 degree tolerance).
-   - **Red Skeleton**: User is out of position.
-4. **State Machine**: Tracks the sequence of phases. A repetition is counted ONLY when the user completes the cycle: `Start -> Peak -> Start`.
-5. **Feedback**: Triggers audio and visual cues based on successful phase matches.
+PhysioFlow includes an **AI Voice Call Agent built using Retell AI** to assist patients via voice calls.
 
-## Setup Instructions
+### Voice Agent Capabilities
+- Answers common patient queries:
+  - How to perform assigned exercises
+  - Exercise schedule and session guidance
+  - Accuracy, sets, and repetition rules
+  - Appointment details and reminders
+- Guides patients through rehabilitation workflows
+- Provides calm, friendly, and professional responses
+- Uses a predefined **knowledge base** for safe and accurate answers
 
-### Prerequisites
-- Node.js 18+
-- npm or yarn
-- A Supabase account
+### Smart Call Transfer
+- Automatically transfers the call to the doctor when:
+  - A critical medical query is detected
+  - The patient explicitly requests to talk to a doctor
+  - The question is outside the AI agent’s knowledge scope
+- Ensures no medical advice is given beyond the configured knowledge base
 
-### Installation
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Create a `.env.local` file with your Supabase credentials:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-   ```
-4. Run the development server:
-   ```bash
-   npm run dev
-   ```
+---
 
-## Project Structure
-- `/src/app`: Next.js pages and layouts (Routes for /doctor, /patient, /exercise)
-- `/src/components`: UI components (Sidebar, Dashboard cards, Charts)
-- `/src/lib`: Utilities (Supabase client, Template extraction logic, Voice feedback)
-- `/src/pose-detection`: Core AI logic classes (PoseEngine, PoseRenderer)
+## 📊 Reports & Analytics
+- Session-wise exercise performance
+- Accuracy trends over time
+- Set & repetition completion stats
+- Patient adherence and consistency tracking
+- Downloadable reports for clinical review
+
+---
+
+## 📱 Responsive Design
+- Fully responsive for **mobile, tablet, and desktop**
+- Mobile-first UI approach
+- Touch-friendly controls
+- Optimized camera and exercise screens for smaller devices
+- Consistent behavior across all screen sizes
+
+---
+
+## 🧠 Technology Stack
+
+### Frontend
+- React
+- Next.js
+- Tailwind CSS / CSS Modules
+- MediaPipe / TensorFlow.js
+
+### Backend
+- Node.js
+- Supabase (Auth, Database, Storage)
+- REST / Webhooks
+
+### AI & Voice
+- MediaPipe / MoveNet (Pose Detection)
+- Retell AI (Voice Call Agent)
+
+### DevOps
+- Docker
+- Ngrok (Webhooks & local testing)
+
+---
+
+## 🔐 Security & Privacy
+- Secure authentication using Supabase Auth
+- Role-based access (Doctor / Patient / Admin)
+- Encrypted data storage
+- No unauthorized access to medical data
+- Voice agent restricted to approved knowledge base
+
+---
+
+## 🛠️ Installation & Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/physioflow.git
+
+# Install dependencies
+npm install
+
+# Run the development server
+npm run dev
