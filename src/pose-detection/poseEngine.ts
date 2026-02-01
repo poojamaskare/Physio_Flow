@@ -53,7 +53,7 @@ export class PoseEngine {
             );
             console.log('Pose detector loaded successfully');
         } catch (error) {
-            console.error('Failed to load model:', error);
+            console.warn('Failed to load primary model (Thunder), attempting fallback:', error);
 
             // If Thunder failed, try Lightning as fallback
             if (!useLightning) {

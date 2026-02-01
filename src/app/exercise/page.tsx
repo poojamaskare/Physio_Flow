@@ -273,7 +273,14 @@ export default function ExercisePage() {
 
                                                     setTimeout(() => {
                                                         repCounted = false
-                                                        phaseSequence = []
+
+                                                        // Check if this was the last rep of the set
+                                                        if (currentRepCount + 1 >= targetReps) {
+                                                            phaseSequence = [] // Clear sequence for next set
+                                                        } else {
+                                                            // Keep the last phase (usually 'start') to anchor the next rep
+                                                            phaseSequence = [lastPhase]
+                                                        }
                                                     }, 800)
                                                 }
                                             }
