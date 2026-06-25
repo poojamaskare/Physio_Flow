@@ -295,7 +295,6 @@ export default function AdminDashboard() {
                                         <th className="text-left px-6 py-4 font-semibold">Specialization</th>
                                         <th className="text-left px-6 py-4 font-semibold">Status</th>
                                         <th className="text-left px-6 py-4 font-semibold">Patients</th>
-                                        <th className="text-left px-6 py-4 font-semibold">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -319,18 +318,10 @@ export default function AdminDashboard() {
                                                     {doc.patientCount || 0}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <button
-                                                    onClick={() => handleDeleteDoctor(doc.id)}
-                                                    className="px-3 py-1 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
-                                                >
-                                                    Delete
-                                                </button>
-                                            </td>
                                         </tr>
                                     )) : (
                                         <tr>
-                                            <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                                            <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
                                                 No doctors found. Add your first doctor!
                                             </td>
                                         </tr>

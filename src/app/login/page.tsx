@@ -39,23 +39,23 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 transition-colors duration-500">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-surface via-surface-container-low to-surface-container dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 transition-colors duration-500">
             <ThemeToggle className="absolute top-4 right-4" />
-            <div className="w-full max-w-sm bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl p-6 shadow-2xl transition-colors duration-500">
+            <div className="w-full max-w-[380px] bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border border-outline-variant/30 dark:border-white/10 rounded-2xl p-6 shadow-2xl transition-colors duration-500">
                 {/* Header */}
                 <div className="text-center mb-6">
-                    <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-cyan-500 to-teal-400 rounded-xl mb-3 shadow-lg shadow-cyan-500/20">
-                        <Activity size={28} className="text-white" />
+                    <div className="inline-flex items-center justify-center w-14 h-14 bg-primary/10 dark:bg-primary/20 border border-primary/20 rounded-xl mb-3 shadow-sm">
+                        <Activity size={28} className="text-primary" />
                     </div>
-                    <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-600 to-teal-500 dark:from-cyan-400 dark:to-teal-400 bg-clip-text text-transparent">
+                    <h1 className="font-headline-md text-2xl text-on-surface tracking-tighter uppercase">
                         PhysioFlow
                     </h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">AI-Powered Physiotherapy</p>
+                    <p className="font-label-md text-on-surface-variant text-xs mt-1">AI-Powered Physiotherapy</p>
                 </div>
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Welcome Back</h2>
+                    <h2 className="font-headline-md text-lg text-on-surface uppercase tracking-tight">Welcome Back</h2>
 
                     {error && (
                         <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 dark:bg-red-500/10 dark:border-red-500/30 rounded-lg text-red-600 dark:text-red-400 text-xs">
@@ -80,7 +80,7 @@ export default function LoginPage() {
                             onChange={(e) => setEmail(e.target.value)}
                             required
                             disabled={loading}
-                            className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 disabled:opacity-50 transition-all"
+                            className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:opacity-50 transition-all"
                         />
                     </div>
 
@@ -95,7 +95,7 @@ export default function LoginPage() {
                                 required
                                 minLength={6}
                                 disabled={loading}
-                                className="w-full px-3 py-2.5 pr-10 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 disabled:opacity-50 transition-all"
+                                className="w-full px-3 py-2.5 pr-10 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:opacity-50 transition-all"
                             />
                             <button
                                 type="button"
@@ -114,13 +114,13 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-2.5 mt-2 bg-gradient-to-r from-cyan-500 to-teal-400 rounded-lg text-white dark:text-slate-900 text-sm font-semibold flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-cyan-500/25 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none transition-all"
+                        className="w-full py-3 mt-4 bg-primary text-white rounded-lg font-label-caps uppercase tracking-wider scale-[0.98] hover:scale-100 active:scale-[0.98] transition-all duration-300 hover:shadow-lg hover:shadow-primary/20 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
                     >
                         {loading ? (
-                            <>
-                                <span className="w-4 h-4 border-2 border-white/30 dark:border-slate-900/30 border-t-white dark:border-t-slate-900 rounded-full animate-spin"></span>
+                            <div className="flex items-center justify-center gap-2">
+                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
                                 Signing in...
-                            </>
+                            </div>
                         ) : (
                             'Sign In'
                         )}
@@ -128,7 +128,7 @@ export default function LoginPage() {
 
                     <p className="text-center text-slate-500 dark:text-slate-400 text-xs">
                         Don&apos;t have an account?{' '}
-                        <Link href="/signup" className="text-cyan-400 font-semibold hover:text-teal-400 transition-colors">
+                        <Link href="/signup" className="text-primary font-semibold hover:opacity-80 transition-colors">
                             Sign up
                         </Link>
                     </p>
