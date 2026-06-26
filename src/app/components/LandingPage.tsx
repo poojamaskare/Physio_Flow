@@ -225,7 +225,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           </div>
           <div className="w-full relative mt-stack-lg md:mt-0 fade-in-up delay-200">
             <div className="relative w-full aspect-square md:aspect-auto md:h-[80vh] overflow-hidden rounded-xl border border-outline-variant/30 bg-surface-container shadow-xl">
-              <img alt="Advanced AI skeleton tracking in a home environment" className="w-full h-full object-cover scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGZq8o8ngEcwZyssgylK8JTXC2ECRt9sGUB5M0gCpDwzCiKG-tC_MEdLhSSfmVw4__OhcE2V7BeDAhL-rvKbhnMiikX_hjadwgrHm6wovGPVlf_M-jUYsfYeh3hETKOM-y1ydvsIoSKZp-0G6ixuiXSOAbFpDUFPU2lBKAdEbc8iqWIrb-BxyV2J-IWlkzO8jAIRzeslnJhhfq_vdsIDMc-tYc0rHgHP3MlxJyT47ttCjsR4UyhKBDzEn7piviOxi7qVHVjT368psk"/>
+              <img alt="Advanced AI skeleton tracking in a home environment" className="w-full h-full object-cover scale-105" src="/landing-page.jpg"/>
               <div className="absolute inset-0 bg-gradient-to-t from-background/20 via-transparent to-transparent opacity-40"></div>
               {/* HUD Overlays */}
               <div className="absolute top-8 right-8 glass-hud p-6 rounded-lg w-48 shadow-sm">
