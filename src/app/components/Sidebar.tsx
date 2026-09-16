@@ -1,20 +1,13 @@
-
 'use client'
 
-import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { User } from '@/lib/auth'
-import {
-    LayoutDashboard,
-    Activity,
-    Utensils,
-    TrendingUp,
-    LogOut,
-    UserCircle,
-    X,
-    LucideIcon
-} from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { LayoutDashboard, Activity, Utensils, TrendingUp, LogOut, X, LucideIcon } from 'lucide-react'
 
 export interface MenuItem {
     id: string
@@ -29,8 +22,8 @@ interface SidebarProps {
     onLogout: () => void
     isOpen: boolean
     onClose: () => void
-    items?: MenuItem[] // Optional: if provided, uses these instead of default
-    activeTab?: string // Optional: for state-based highlighting
+    items?: MenuItem[]
+    activeTab?: string
 }
 
 const defaultMenuItems: MenuItem[] = [
@@ -42,104 +35,73 @@ const defaultMenuItems: MenuItem[] = [
 
 export default function Sidebar({ user, onLogout, isOpen, onClose, items = defaultMenuItems, activeTab }: SidebarProps) {
     const pathname = usePathname()
+    const initials = (user?.name || 'G').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase()
 
     return (
         <>
-            {/* Mobile Overlay */}
-            {isOpen && (
-                <div 
-                    className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
-                    onClick={onClose}
-                />
-            )}
+            {isOpen && <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm md:hidden" onClick={onClose} />}
 
-            {/* Sidebar */}
-            <aside className={`
-                fixed top-0 left-0 h-full w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-white/10 
-                flex flex-col z-50 transition-transform duration-300 ease-in-out
-                ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
-            `}>
-                {/* Header */}
-                <div className="p-6 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Activity size={28} className="text-cyan-600 dark:text-cyan-400" />
-                        <span className="text-xl font-bold bg-gradient-to-r from-cyan-600 to-teal-500 dark:from-cyan-400 dark:to-teal-400 bg-clip-text text-transparent">
-                            PhysioFlow
-                        </span>
-                    </div>
-                    {/* Mobile Close Button */}
-                    <button onClick={onClose} className="md:hidden text-slate-500 hover:text-slate-900 dark:hover:text-white">
-                        <X size={24} />
-                    </button>
+            <aside
+                className={cn(
+                    'fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r bg-sidebar text-sidebar-foreground transition-transform duration-200 md:translate-x-0',
+                    isOpen ? 'translate-x-0' : '-translate-x-full'
+                )}
+            >
+                <div className="flex h-14 items-center justify-between px-4">
+                    <Link href="/" className="flex items-center gap-2 font-semibold">
+                        <Activity className="size-5" />
+                        PhysioFlow
+                    </Link>
+                    <Button variant="ghost" size="icon" className="md:hidden" onClick={onClose} aria-label="Close menu">
+                        <X className="size-4" />
+                    </Button>
                 </div>
+                <Separator />
 
-                {/* Navigation */}
-                <nav className="flex-1 p-4 space-y-2 mt-4 overflow-y-auto">
-                    {items.map((item) => {
-                        // Determine active state: either by href match or activeTab prop
-                        const isActive = activeTab 
-                            ? activeTab === item.id 
-                            : (item.href && pathname === item.href) || (item.href && pathname?.startsWith(item.href) && item.href !== '/patient')
-
-                        const content = (
+                <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+                    {items.map(item => {
+                        const isActive = activeTab
+                            ? activeTab === item.id
+                            : !!item.href && (pathname === item.href || (item.href !== '/patient' && pathname?.startsWith(item.href)))
+                        const cls = cn(
+                            'flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                            isActive
+                                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                                : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
+                        )
+                        const inner = (
                             <>
-                                <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-                                <span className={`font-medium ${isActive ? 'font-bold' : ''}`}>{item.label}</span>
+                                <item.icon className="size-4" />
+                                {item.label}
                             </>
                         )
-
-                        const className = `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer ${isActive
-                            ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/25'
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
-                            }`
-
-                        if (item.href) {
-                            return (
-                                <Link 
-                                    key={item.id} 
-                                    href={item.href} 
-                                    className={className}
-                                    onClick={() => onClose()} // Close on mobile navigation
-                                >
-                                    {content}
-                                </Link>
-                            )
-                        } else {
-                            return (
-                                <div 
-                                    key={item.id} 
-                                    onClick={() => {
-                                        if (item.onClick) item.onClick()
-                                        onClose()
-                                    }}
-                                    className={className}
-                                >
-                                    {content}
-                                </div>
-                            )
-                        }
+                        return item.href ? (
+                            <Link key={item.id} href={item.href} className={cls} onClick={onClose}>
+                                {inner}
+                            </Link>
+                        ) : (
+                            <button key={item.id} type="button" className={cls} onClick={() => { item.onClick?.(); onClose() }}>
+                                {inner}
+                            </button>
+                        )
                     })}
                 </nav>
 
-                {/* Footer */}
-                <div className="p-4 border-t border-slate-200 dark:border-white/10">
-                    <div className="flex items-center gap-3 mb-4 p-2">
-                        <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-500">
-                            <UserCircle size={28} />
-                        </div>
-                        <div className="overflow-hidden">
-                            <p className="font-medium text-sm text-slate-900 dark:text-white leading-tight truncate">{user?.name || 'Guest User'}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">{user?.role || 'User'}</p>
+                <Separator />
+                <div className="space-y-2 p-3">
+                    <div className="flex items-center gap-2.5 rounded-md px-2 py-1.5">
+                        <Avatar className="size-8">
+                            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-medium leading-tight">{user?.name || 'Guest'}</p>
+                            <p className="text-xs capitalize text-muted-foreground">{user?.role || 'user'}</p>
                         </div>
                     </div>
-
-                    <button
-                        onClick={onLogout}
-                        className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-500 transition-all font-medium"
-                    >
-                        <LogOut size={20} />
+                    <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-destructive" onClick={onLogout}>
+                        <LogOut className="size-4" />
                         Logout
-                    </button>
+                    </Button>
                 </div>
             </aside>
         </>

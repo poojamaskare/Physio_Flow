@@ -4,55 +4,28 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 
 type Theme = 'light' | 'dark'
 
-interface ThemeContextType {
-    theme: Theme
-    toggleTheme: () => void
-}
-
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
+const ThemeContext = createContext<{ theme: Theme; toggleTheme: () => void } | undefined>(undefined)
 
 export function useTheme() {
-    const context = useContext(ThemeContext)
-    if (!context) {
-        throw new Error('useTheme must be used within a ThemeProvider')
-    }
-    return context
+    const ctx = useContext(ThemeContext)
+    if (!ctx) throw new Error('useTheme must be used within a ThemeProvider')
+    return ctx
 }
 
-interface ThemeProviderProps {
-    children: ReactNode
-}
-
-export function ThemeProvider({ children }: ThemeProviderProps) {
-    const [theme, setTheme] = useState<Theme>('dark')
-    const [mounted, setMounted] = useState(false)
+export function ThemeProvider({ children }: { children: ReactNode }) {
+    // Layout's inline script already applied the saved class before hydration; read it back here.
+    const [theme, setTheme] = useState<Theme>(() =>
+        typeof document !== 'undefined' && document.documentElement.classList.contains('light') ? 'light' : 'dark'
+    )
 
     useEffect(() => {
-        // Check localStorage for saved theme preference
-        const savedTheme = localStorage.getItem('physioflow-theme') as Theme | null
-        if (savedTheme) {
-            setTheme(savedTheme)
-        }
-        setMounted(true)
-    }, [])
-
-    useEffect(() => {
-        const root = window.document.documentElement
+        const root = document.documentElement
         root.classList.remove('light', 'dark')
         root.classList.add(theme)
+        localStorage.setItem('physioflow-theme', theme)
+    }, [theme])
 
-        if (mounted) {
-            localStorage.setItem('physioflow-theme', theme)
-        }
-    }, [theme, mounted])
+    const toggleTheme = () => setTheme(t => (t === 'dark' ? 'light' : 'dark'))
 
-    const toggleTheme = () => {
-        setTheme(prev => prev === 'dark' ? 'light' : 'dark')
-    }
-
-    return (
-        <ThemeContext.Provider value={{ theme, toggleTheme }}>
-            {children}
-        </ThemeContext.Provider>
-    )
+    return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>
 }

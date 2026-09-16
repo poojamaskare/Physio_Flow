@@ -3,149 +3,164 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { TrendingUp } from 'lucide-react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardAction } from '@/components/ui/card'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 
-interface DailyProgress {
-    date: string
-    count: number
-    dayName: string
+interface SessionData {
+    id: string
+    accuracy: number
+    duration: number
+    started_at: string
+    exerciseName: string
 }
 
-interface ProgressChartProps {
-    userId: string
-}
-
-export default function ProgressChart({ userId }: ProgressChartProps) {
-    const [weeklyData, setWeeklyData] = useState<DailyProgress[]>([])
+export default function ProgressChart({ userId }: { userId: string }) {
+    const [sessions, setSessions] = useState<SessionData[]>([])
     const [loading, setLoading] = useState(true)
-    const [maxCount, setMaxCount] = useState(1)
+    const [metric, setMetric] = useState<'accuracy' | 'duration'>('accuracy')
+    const [hovered, setHovered] = useState<number | null>(null)
 
     useEffect(() => {
-        fetchWeeklyProgress()
-    }, [userId])
-
-    const fetchWeeklyProgress = async () => {
-        try {
-            // Get last 7 days
-            const days: DailyProgress[] = []
-            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-            for (let i = 6; i >= 0; i--) {
-                const date = new Date()
-                date.setDate(date.getDate() - i)
-                const dateStr = date.toISOString().split('T')[0]
-
-                days.push({
-                    date: dateStr,
-                    count: 0,
-                    dayName: dayNames[date.getDay()]
-                })
-            }
-
-            // Fetch completed exercises for last 7 days
-            const sevenDaysAgo = new Date()
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-
+        const load = async () => {
+            setLoading(true)
             const { data, error } = await supabase
-                .from('patient_exercise_assignments')
-                .select('completed_at')
+                .from('sessions')
+                .select('id, accuracy, duration, started_at, exercise_id')
                 .eq('patient_id', userId)
-                .eq('status', 'completed')
-                .gte('completed_at', sevenDaysAgo.toISOString())
-
-            if (!error && data) {
-                // Count completions per day
-                data.forEach(item => {
-                    if (item.completed_at) {
-                        const completedDate = item.completed_at.split('T')[0]
-                        const dayEntry = days.find(d => d.date === completedDate)
-                        if (dayEntry) {
-                            dayEntry.count++
-                        }
-                    }
-                })
+                .order('started_at', { ascending: true })
+            if (error || !data?.length) {
+                setSessions([])
+                setLoading(false)
+                return
             }
-
-            const max = Math.max(...days.map(d => d.count), 1)
-            setMaxCount(max)
-            setWeeklyData(days)
-        } catch (err) {
-            console.error('Error fetching progress:', err)
-        } finally {
+            const { data: ex } = await supabase.from('exercises').select('id, name')
+            const names = new Map(ex?.map(e => [e.id, e.name]) || [])
+            setSessions(data.map(s => ({
+                id: s.id,
+                accuracy: s.accuracy || 0,
+                duration: s.duration || 0,
+                started_at: s.started_at,
+                exerciseName: names.get(s.exercise_id) || 'Session',
+            })))
             setLoading(false)
         }
-    }
-
-    const totalThisWeek = weeklyData.reduce((sum, d) => sum + d.count, 0)
+        load()
+    }, [userId])
 
     if (loading) {
         return (
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-white/5 animate-pulse">
-                <div className="h-40 bg-slate-100 dark:bg-slate-700 rounded-xl"></div>
-            </div>
+            <Card>
+                <CardHeader>
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-48" />
+                </CardHeader>
+                <CardContent><Skeleton className="h-40 w-full" /></CardContent>
+            </Card>
         )
     }
 
+    if (sessions.length === 0) {
+        return (
+            <Card>
+                <CardContent className="flex flex-col items-center py-10 text-center">
+                    <div className="mb-3 flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                        <TrendingUp className="size-5" />
+                    </div>
+                    <p className="text-sm font-medium">No progress data yet</p>
+                    <p className="mt-1 max-w-xs text-sm text-muted-foreground">Complete your assigned exercises to record accuracy and duration.</p>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    const W = 500, H = 150, PL = 35, PR = 15, PT = 15, PB = 25
+    const cw = W - PL - PR, ch = H - PT - PB
+    const isAcc = metric === 'accuracy'
+    const values = sessions.map(s => (isAcc ? s.accuracy : s.duration))
+    const max = isAcc ? 100 : Math.max(...values, 5)
+
+    const points = sessions.map((s, i) => ({
+        ...s,
+        value: isAcc ? s.accuracy : s.duration,
+        x: PL + (i / (sessions.length - 1 || 1)) * cw,
+        y: PT + (1 - (isAcc ? s.accuracy : s.duration) / max) * ch,
+        date: new Date(s.started_at),
+    }))
+    const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
+    const areaD = `${pathD} L ${points[points.length - 1].x} ${H - PB} L ${points[0].x} ${H - PB} Z`
+    const active = hovered !== null ? points[hovered] : points[points.length - 1]
+    const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+
     return (
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-white/5">
-            <div className="flex items-center justify-between mb-6">
-                <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
-                    <TrendingUp size={20} className="text-cyan-500" />
-                    Weekly Activity
-                </h3>
-                <span className="text-sm text-slate-500 dark:text-slate-400">
-                    {totalThisWeek} exercise{totalThisWeek !== 1 ? 's' : ''} this week
-                </span>
-            </div>
+        <Card>
+            <CardHeader>
+                <CardTitle>Progress</CardTitle>
+                <CardDescription>Session history over time</CardDescription>
+                <CardAction>
+                    <Tabs value={metric} onValueChange={v => { setMetric(v as typeof metric); setHovered(null) }}>
+                        <TabsList>
+                            <TabsTrigger value="accuracy">Accuracy</TabsTrigger>
+                            <TabsTrigger value="duration">Duration</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                </CardAction>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-3">
+                <div className="h-[140px] w-full lg:col-span-2">
+                    <svg viewBox={`0 0 ${W} ${H}`} className="h-full w-full overflow-visible">
+                        {[PT, PT + ch / 2, H - PB].map((y, i) => (
+                            <line key={i} x1={PL} y1={y} x2={W - PR} y2={y} className="stroke-border" strokeDasharray={i < 2 ? '3 3' : undefined} />
+                        ))}
+                        <text x={PL - 6} y={PT + 3} textAnchor="end" className="fill-muted-foreground text-[9px]">{isAcc ? '100%' : `${max}s`}</text>
+                        <text x={PL - 6} y={PT + ch / 2 + 3} textAnchor="end" className="fill-muted-foreground text-[9px]">{isAcc ? '50%' : `${Math.round(max / 2)}s`}</text>
+                        <text x={PL - 6} y={H - PB + 3} textAnchor="end" className="fill-muted-foreground text-[9px]">0</text>
 
-            {/* Bar Chart */}
-            <div className="flex items-end justify-between gap-2 h-32">
-                {weeklyData.map((day, index) => {
-                    const heightPercent = maxCount > 0 ? (day.count / maxCount) * 100 : 0
-                    const isToday = index === weeklyData.length - 1
+                        <defs>
+                            <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="var(--foreground)" stopOpacity="0.15" />
+                                <stop offset="100%" stopColor="var(--foreground)" stopOpacity="0" />
+                            </linearGradient>
+                        </defs>
+                        <path d={areaD} fill="url(#chartGradient)" />
+                        <path d={pathD} fill="none" className="stroke-foreground" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
 
-                    return (
-                        <div key={day.date} className="flex-1 flex flex-col items-center gap-2">
-                            {/* Bar */}
-                            <div className="w-full flex flex-col items-center justify-end h-24">
-                                <div
-                                    className={`w-full max-w-[40px] rounded-t-lg transition-all duration-500 ${day.count > 0
-                                            ? isToday
-                                                ? 'bg-gradient-to-t from-cyan-500 to-teal-400'
-                                                : 'bg-gradient-to-t from-cyan-500/70 to-teal-400/70'
-                                            : 'bg-slate-100 dark:bg-slate-700'
-                                        }`}
-                                    style={{
-                                        height: `${Math.max(heightPercent, 8)}%`,
-                                        minHeight: '8px'
-                                    }}
-                                />
-                                {day.count > 0 && (
-                                    <span className="text-xs font-bold text-cyan-500 mt-1">
-                                        {day.count}
-                                    </span>
-                                )}
-                            </div>
-
-                            {/* Day label */}
-                            <span className={`text-xs font-medium ${isToday
-                                    ? 'text-cyan-500'
-                                    : 'text-slate-400 dark:text-slate-500'
-                                }`}>
-                                {day.dayName}
-                            </span>
-                        </div>
-                    )
-                })}
-            </div>
-
-            {/* Streak indicator */}
-            {totalThisWeek > 0 && (
-                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
-                    <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
-                        🔥 Keep up the great work! Consistency is key.
-                    </p>
+                        {points.map((p, i) => {
+                            const on = hovered === i || (hovered === null && i === points.length - 1)
+                            return (
+                                <g key={p.id}>
+                                    {on && <line x1={p.x} y1={p.y} x2={p.x} y2={H - PB} className="stroke-muted-foreground/40" strokeDasharray="2" />}
+                                    <circle cx={p.x} cy={p.y} r={on ? 5 : 3} className={cn('fill-background stroke-2', on ? 'stroke-foreground' : 'stroke-muted-foreground')} />
+                                    <rect x={p.x - 12} y={PT} width={24} height={ch} fill="transparent" onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} />
+                                </g>
+                            )
+                        })}
+                        {[0, Math.round(points.length / 2), points.length - 1].map(i => points[i] && (
+                            <text key={points[i].id} x={points[i].x} y={H - 10} textAnchor="middle" className="fill-muted-foreground text-[9px]">{fmt(points[i].date)}</text>
+                        ))}
+                    </svg>
                 </div>
-            )}
-        </div>
+
+                <div className="flex flex-col justify-between rounded-lg border bg-muted/40 p-4">
+                    <div>
+                        <p className="truncate text-sm font-medium">{active.exerciseName}</p>
+                        <p className="text-xs text-muted-foreground">
+                            {active.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                        <div className="rounded-md border bg-background p-2 text-center">
+                            <p className="text-xs text-muted-foreground">Accuracy</p>
+                            <p className="text-lg font-semibold tabular-nums">{active.accuracy}%</p>
+                        </div>
+                        <div className="rounded-md border bg-background p-2 text-center">
+                            <p className="text-xs text-muted-foreground">Duration</p>
+                            <p className="text-lg font-semibold tabular-nums">{Math.round(active.duration / 60) || 1}m</p>
+                        </div>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
     )
 }

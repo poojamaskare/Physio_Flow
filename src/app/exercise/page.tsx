@@ -1,32 +1,19 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { Dumbbell, Repeat, Activity, ListChecks, RotateCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser, signOut, User } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
-import Sidebar from '../components/Sidebar'
+import { cn } from '@/lib/utils'
+import AppShell from '../components/AppShell'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Loader2, Square } from 'lucide-react'
 
-interface Exercise {
-    id: string
-    name: string
-    description: string
-    duration_seconds: number
-    difficulty: string
-    video_url: string
-}
-
-interface PatientExercise {
-    id: string
-    exercise_id: string
-    reps_per_set: number
-    sets: number
-    notes: string
-    status: string
-    completed?: boolean
-    completed_at?: string
-    exercise?: Exercise
-}
+interface Exercise { id: string; name: string; description: string; duration_seconds: number; difficulty: string; video_url: string }
+interface PatientExercise { id: string; exercise_id: string; reps_per_set: number; sets: number; notes: string; status: string; completed?: boolean; completed_at?: string; exercise?: Exercise }
 
 export default function ExercisePage() {
     const router = useRouter()
@@ -35,7 +22,6 @@ export default function ExercisePage() {
     const [assignments, setAssignments] = useState<PatientExercise[]>([])
     const [currentIndex, setCurrentIndex] = useState(0)
     const [sessionStarted, setSessionStarted] = useState(false)
-    const [sessionLoading, setSessionLoading] = useState(false)
     const [isInitializing, setIsInitializing] = useState(false)
     const [error, setError] = useState('')
     const [repCount, setRepCount] = useState(0)
@@ -49,56 +35,34 @@ export default function ExercisePage() {
     const referenceVideoRef = useRef<HTMLVideoElement>(null)
     const streamRef = useRef<MediaStream | null>(null)
     const poseEngineRef = useRef<any>(null)
-    const referencePoseEngineRef = useRef<any>(null)
     const animationRef = useRef<number | null>(null)
     const repCountRef = useRef(0)
 
-    // Sync ref with state for use in closures
-    useEffect(() => {
-        repCountRef.current = repCount
-    }, [repCount])
+    useEffect(() => { repCountRef.current = repCount }, [repCount])
 
     useEffect(() => {
         checkAuth()
-        return () => {
-            stopSession()
-        }
-    }, [])
+        return () => { stopSession() }
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+    useEffect(() => { if (user) fetchAssignments() }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Advance sets; stop and mark complete after the last set.
     useEffect(() => {
-        if (user) {
-            fetchAssignments()
+        if (!sessionStarted || repCount <= 0) return
+        const targetReps = assignments[currentIndex]?.reps_per_set || 10
+        const totalSets = assignments[currentIndex]?.sets || 3
+        if (repCount < targetReps) return
+        if (currentSet < totalSets) {
+            setSetCompleteMessage(`Set ${currentSet} complete`)
+            setTimeout(() => { setCurrentSet(s => s + 1); setRepCount(0); setSetCompleteMessage('') }, 2000)
+        } else {
+            setExerciseCompleted(true)
+            setSetCompleteMessage(`All ${totalSets} sets complete`)
+            markExerciseComplete()
+            setTimeout(() => stopSession(), 3000)
         }
-    }, [user])
-
-    // Handle set completion - don't stop until all sets are done
-    useEffect(() => {
-        if (sessionStarted && repCount > 0) {
-            const targetReps = assignments[currentIndex]?.reps_per_set || 10
-            const totalSets = assignments[currentIndex]?.sets || 3
-
-            if (repCount >= targetReps) {
-                if (currentSet < totalSets) {
-                    // Set complete, but more sets to go
-                    setSetCompleteMessage(`Set ${currentSet} Complete! 🎉`)
-                    setTimeout(() => {
-                        setCurrentSet(prev => prev + 1)
-                        setRepCount(0)
-                        setSetCompleteMessage('')
-                    }, 2000)
-                } else {
-                    // All sets complete!
-                    setExerciseCompleted(true)
-                    setSetCompleteMessage(`All ${totalSets} Sets Complete! 🏆`)
-                    // Mark exercise as completed in database
-                    markExerciseComplete()
-                    setTimeout(() => {
-                        stopSession()
-                    }, 3000)
-                }
-            }
-        }
-    }, [repCount, sessionStarted, currentIndex, assignments, currentSet])
+    }, [repCount, sessionStarted, currentIndex, assignments, currentSet]) // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         let mounted = true
@@ -130,7 +94,11 @@ export default function ExercisePage() {
                 // Use Lightning on mobile (smaller, faster to download)
                 const isMobile = window.innerWidth < 768 || 'ontouchstart' in window
                 console.log(`Device type: ${isMobile ? 'Mobile' : 'Desktop'}, using ${isMobile ? 'Lightning' : 'Thunder'} model`)
-                await poseEngineRef.current.init(isMobile)
+                // ponytail: 90s cap so a stalled model download surfaces as an error instead of an infinite spinner
+                await Promise.race([
+                    poseEngineRef.current.init(isMobile),
+                    new Promise((_, rej) => setTimeout(() => rej(new Error('Model download timed out — check your internet connection and try again')), 90000)),
+                ])
 
                 // Load template from database
                 const currentExercise = assignments[currentIndex]?.exercise
@@ -156,9 +124,7 @@ export default function ExercisePage() {
                 if (referenceVideoRef.current && currentExercise?.video_url) {
                     referenceVideoRef.current.src = currentExercise.video_url
                     referenceVideoRef.current.load()
-                    try {
-                        await referenceVideoRef.current.play()
-                    } catch (e) { }
+                    referenceVideoRef.current.play().catch(() => { })
                 }
 
                 if (!mounted) return
@@ -175,7 +141,10 @@ export default function ExercisePage() {
                     renderer.resize(rect.width, rect.height)
                 }
 
-                let poseHoldFrames = 0
+                // ponytail: 5 frames ≈ 150-250ms at webcam rates; raise if flicker still counts reps
+                const HOLD_FRAMES = 5
+                let candidatePhase = ''
+                let candidateFrames = 0
                 let repCounted = false
                 const targetReps = assignments[currentIndex]?.reps_per_set || 10
 
@@ -241,7 +210,16 @@ export default function ExercisePage() {
                                     // Match to template phase
                                     const match = matchPoseToPhase(userAngles, exerciseTemplate)
                                     isCorrect = match.isMatch
-                                    currentPhase = match.phase || ''
+                                    // Only a real match counts as being "in" a phase; the closest-but-wrong phase must not.
+                                    const matchedPhase = match.isMatch ? match.phase || '' : ''
+                                    // Debounce: the pose must be held for HOLD_FRAMES consecutive frames before it registers.
+                                    if (matchedPhase && matchedPhase === candidatePhase) {
+                                        candidateFrames++
+                                    } else {
+                                        candidatePhase = matchedPhase
+                                        candidateFrames = matchedPhase ? 1 : 0
+                                    }
+                                    currentPhase = candidateFrames >= HOLD_FRAMES ? candidatePhase : lastPhase
 
                                     // Track phase sequence for rep counting
                                     if (currentPhase && currentPhase !== lastPhase) {
@@ -334,292 +312,165 @@ export default function ExercisePage() {
 
 
     const checkAuth = async () => {
-        const currentUser = await getCurrentUser()
-        if (!currentUser || currentUser.role !== 'patient') {
-            router.push('/login')
-            return
-        }
-        setUser(currentUser)
+        const current = await getCurrentUser()
+        if (!current || current.role !== 'patient') return router.push('/login')
+        setUser(current)
         setLoading(false)
     }
 
     const fetchAssignments = async () => {
         if (!user) return
-
-        const { data } = await supabase
-            .from('patient_exercises')
-            .select(`
-                *,
-                exercise:exercises(*)
-            `)
-            .eq('patient_id', user.id)
-
+        const { data } = await supabase.from('patient_exercises').select('*, exercise:exercises(*)').eq('patient_id', user.id)
         setAssignments(data || [])
     }
 
-    const handleLogout = async () => {
-        stopSession()
-        await signOut()
-        router.push('/login')
-    }
+    const handleLogout = async () => { stopSession(); await signOut(); router.push('/login') }
 
-    // Mark exercise as completed in database
     const markExerciseComplete = async () => {
-        const assignment = assignments[currentIndex]
-        if (!assignment) return
-
-        await supabase
-            .from('patient_exercises')
-            .update({
-                completed: true,
-                status: 'completed',
-                completed_at: new Date().toISOString()
-            })
-            .eq('id', assignment.id)
-
-        // Refresh assignments to show updated status
+        const a = assignments[currentIndex]
+        if (!a) return
+        await supabase.from('patient_exercises').update({ completed: true, status: 'completed', completed_at: new Date().toISOString() }).eq('id', a.id)
         fetchAssignments()
     }
 
-    const currentExercise = assignments[currentIndex]?.exercise
-
     const startSession = async (index?: number) => {
-        if (typeof index === 'number') {
-            setCurrentIndex(index)
-        }
-
-        // Reset states for new session
+        if (typeof index === 'number') setCurrentIndex(index)
         setRepCount(0)
         setCurrentSet(1)
         setSetCompleteMessage('')
         setExerciseCompleted(false)
-
-        setSessionLoading(true)
         setError('')
         setIsInitializing(true)
-
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
-                    facingMode: 'user'
-                },
-                audio: false
-            })
-
-            streamRef.current = stream
+            streamRef.current = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }, audio: false })
             setSessionStarted(true)
-            setSessionLoading(false)
-
-        } catch (err: any) {
+        } catch {
             setError('Please allow camera access to start the exercise.')
-            setSessionLoading(false)
             setIsInitializing(false)
         }
     }
 
     const stopSession = async () => {
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(t => t.stop())
-            streamRef.current = null
-        }
-        if (animationRef.current) {
-            cancelAnimationFrame(animationRef.current)
-            animationRef.current = null
-        }
+        streamRef.current?.getTracks().forEach(t => t.stop())
+        streamRef.current = null
+        if (animationRef.current) { cancelAnimationFrame(animationRef.current); animationRef.current = null }
         if (poseEngineRef.current) {
-            try { await poseEngineRef.current.dispose() } catch (e) { }
+            try { await poseEngineRef.current.dispose() } catch { }
             poseEngineRef.current = null
-        }
-        if (referencePoseEngineRef.current) {
-            try { await referencePoseEngineRef.current.dispose() } catch (e) { }
-            referencePoseEngineRef.current = null
         }
         setSessionStarted(false)
         setRepCount(0)
     }
 
-    const nextExercise = () => {
-        if (currentIndex < assignments.length - 1) {
-            stopSession()
-            setCurrentIndex(prev => prev + 1)
-            // Re-start session automatically for next exercise
-            setTimeout(() => startSession(currentIndex + 1), 100)
-        }
-    }
-
-    const prevExercise = () => {
-        if (currentIndex > 0) {
-            stopSession()
-            setCurrentIndex(prev => prev - 1)
-            setTimeout(() => startSession(currentIndex - 1), 100)
-        }
+    const goTo = (index: number) => {
+        if (index < 0 || index >= assignments.length) return
+        stopSession()
+        setCurrentIndex(index)
+        setTimeout(() => startSession(index), 100)
     }
 
     if (loading) {
+        return <div className="flex min-h-dvh items-center justify-center bg-background"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>
+    }
+
+    const current = assignments[currentIndex]
+    const targetReps = current?.reps_per_set || 10
+    const totalSets = current?.sets || 3
+    const goalReached = repCount >= targetReps
+
+    if (sessionStarted) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-900">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-cyan-500"></div>
+            <div ref={containerRef} className="fixed inset-0 z-50 bg-black text-white">
+                <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 size-full -scale-x-100 object-cover" />
+                <canvas ref={canvasRef} className="absolute inset-0 size-full -scale-x-100" />
+
+                {isInitializing && (
+                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/80 backdrop-blur-sm">
+                        <Loader2 className="size-8 animate-spin" />
+                        <p className="text-sm text-white/70">Loading pose model…</p>
+                    </div>
+                )}
+
+                {/* Demo video */}
+                <div className="absolute top-3 right-3 w-36 overflow-hidden rounded-lg border border-white/15 bg-black/60 backdrop-blur sm:top-4 sm:right-4 sm:w-56 md:w-72">
+                    <video ref={referenceVideoRef} loop muted playsInline crossOrigin="anonymous" className="aspect-video w-full object-contain" />
+                    <p className="px-2 py-1 text-center text-xs text-white/70">Demo · {current?.exercise?.name}</p>
+                </div>
+
+                {/* Rep counter */}
+                <div className="absolute top-3 left-3 rounded-lg border border-white/15 bg-black/60 px-4 py-3 text-center backdrop-blur sm:top-4 sm:left-4 sm:px-6 sm:py-4">
+                    <p className="text-xs text-white/70">Set {currentSet} / {totalSets}</p>
+                    <p className={cn('text-5xl font-semibold tabular-nums sm:text-6xl', goalReached && 'text-success')}>{repCount}</p>
+                    <p className="text-xs text-white/70">of {targetReps} reps</p>
+                </div>
+
+                {setCompleteMessage && (
+                    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                        <div className="flex flex-col items-center gap-2 rounded-xl border border-white/15 bg-black/80 px-8 py-6 text-center">
+                            <CheckCircle2 className={cn('size-8', exerciseCompleted ? 'text-success' : 'text-white')} />
+                            <p className="text-2xl font-semibold">{setCompleteMessage}</p>
+                            <p className="text-sm text-white/70">{exerciseCompleted ? 'Exercise complete' : `Preparing set ${currentSet + 1}…`}</p>
+                        </div>
+                    </div>
+                )}
+
+                <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 sm:bottom-8">
+                    <Button variant="secondary" onClick={() => goTo(currentIndex - 1)} disabled={currentIndex === 0}><ChevronLeft /> Prev</Button>
+                    <Button variant="destructive" onClick={stopSession}><Square /> Stop</Button>
+                    <Button
+                        variant={goalReached ? 'default' : 'secondary'}
+                        onClick={() => (currentIndex === assignments.length - 1 ? stopSession() : goTo(currentIndex + 1))}
+                        disabled={currentIndex === assignments.length - 1 && !goalReached}
+                    >
+                        {currentIndex === assignments.length - 1 ? 'Finish' : 'Next'} <ChevronRight />
+                    </Button>
+                </div>
             </div>
         )
     }
 
-    const currentTarget = assignments[currentIndex]?.reps_per_set || 10
-
     return (
-        <div className="min-h-[100dvh] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white transition-colors duration-500 font-sans" ref={containerRef}>
-            {sessionStarted ? (
-                <div className="fixed inset-0 bg-black z-50">
-                    <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover -scale-x-100" />
-                    <canvas ref={canvasRef} className="absolute inset-0 w-full h-full -scale-x-100" />
-
-                    {isInitializing && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm z-50">
-                            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-cyan-500 mb-4"></div>
-                            <p className="text-cyan-400 font-bold tracking-widest animate-pulse">Get ready for your exercise...</p>
-                        </div>
-                    )}
-
-                    <div className="absolute top-2 right-2 sm:top-4 sm:right-4 w-32 sm:w-48 md:w-64 lg:w-80 bg-slate-800/90 rounded-lg sm:rounded-xl overflow-hidden border border-white/10">
-                        <video
-                            ref={referenceVideoRef}
-                            loop
-                            muted
-                            playsInline
-                            crossOrigin="anonymous"
-                            className="w-full aspect-video object-contain bg-black"
-                        />
-                        <div className="p-1 sm:p-2 text-center">
-                            <p className="text-xs sm:text-sm text-slate-300 font-semibold">Demo</p>
-                        </div>
-                    </div>
-
-                    <div className="absolute top-2 left-2 sm:top-4 sm:left-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-emerald-500/50 rounded-xl sm:rounded-2xl p-3 sm:p-6 text-center shadow-2xl dark:shadow-emerald-500/20 z-10 transition-all">
-                        <p className="text-[10px] sm:text-xs font-black text-cyan-400 tracking-widest sm:tracking-[0.2em] mb-0.5 sm:mb-1">SET {currentSet} / {assignments[currentIndex]?.sets || 3}</p>
-                        <p className="text-[10px] sm:text-xs font-black text-emerald-400 tracking-widest sm:tracking-[0.2em] mb-0.5 sm:mb-1">REPS</p>
-                        <p className="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white">{repCount}</p>
-                        <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 sm:mt-1">Goal: {currentTarget}</p>
-                        {repCount >= currentTarget && (
-                            <div className="mt-2 sm:mt-4 py-1 sm:py-2 px-2 sm:px-3 bg-emerald-500 text-slate-900 rounded-lg font-black text-[10px] sm:text-xs animate-bounce">
-                                🎉 GOAL!
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Set Complete Message Overlay */}
-                    {setCompleteMessage && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-40">
-                            <div className={`text-center px-8 py-6 rounded-2xl border ${exerciseCompleted ? 'bg-emerald-500/20 border-emerald-500/50' : 'bg-slate-800/90 border-cyan-500/30'}`}>
-                                <p className={`text-2xl font-semibold mb-2 ${exerciseCompleted ? 'text-emerald-400' : 'text-white'}`}>{setCompleteMessage}</p>
-                                {!exerciseCompleted && (
-                                    <p className="text-sm text-slate-400">Preparing Set {currentSet + 1}...</p>
-                                )}
-                                {exerciseCompleted && (
-                                    <p className="text-sm text-emerald-300/80">Exercise complete!</p>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="absolute bottom-4 sm:bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-4 w-[95%] sm:w-auto justify-center">
-                        <button onClick={prevExercise} disabled={currentIndex === 0} className="px-3 sm:px-6 py-2 sm:py-3 bg-slate-800/80 text-white rounded-lg sm:rounded-xl disabled:opacity-30 hover:bg-slate-700 text-sm sm:text-base">Prev</button>
-                        <button onClick={stopSession} className="px-4 sm:px-8 py-2 sm:py-3 bg-red-500/80 text-white rounded-lg sm:rounded-xl font-bold hover:bg-red-600 text-sm sm:text-base">STOP</button>
-                        <button
-                            onClick={nextExercise}
-                            disabled={currentIndex === assignments.length - 1 && repCount < currentTarget}
-                            className={`px-3 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl transition-all text-sm sm:text-base ${repCount >= currentTarget
-                                ? 'bg-emerald-500 text-slate-900 font-bold sm:scale-110 shadow-lg shadow-emerald-500/30'
-                                : 'bg-slate-800/80 text-white disabled:opacity-30'
-                                }`}
-                        >
-                            {currentIndex === assignments.length - 1 ? 'Finish' : 'Next →'}
-                        </button>
-                    </div>
+        <AppShell user={user} onLogout={handleLogout} title="Exercise">
+            <div className="space-y-4">
+                <div>
+                    <h2 className="text-2xl font-semibold tracking-tight">Your exercises</h2>
+                    <p className="text-sm text-muted-foreground">Start a session to track reps with your camera.</p>
                 </div>
-            ) : (
-                <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen">
-                    <div className="hidden md:block">
-                        <Sidebar user={user} onLogout={handleLogout} isOpen={true} onClose={() => { }} />
-                    </div>
-                    <main className="md:ml-64 p-4 sm:p-8 w-full">
-                        {/* Mobile header */}
-                        <div className="md:hidden flex items-center justify-between mb-6">
-                            <h1 className="text-2xl font-bold">Exercises</h1>
-                            <button onClick={handleLogout} className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm">
-                                Logout
-                            </button>
-                        </div>
-                        <h1 className="hidden md:block text-3xl font-bold mb-8">Your Exercises</h1>
 
-                        {error && <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-500 mb-6">{error}</div>}
+                {error && (
+                    <Alert variant="destructive">
+                        <AlertCircle />
+                        <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                )}
 
-                        {assignments.length > 0 ? (
-                            <div className="grid gap-3 sm:gap-4">
-                                {assignments.map((assignment, index) => (
-                                    <div
-                                        key={assignment.id}
-                                        className={`bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-sm border flex flex-col sm:flex-row sm:items-center justify-between gap-4 group transition-all ${assignment.completed
-                                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
-                                            : 'border-slate-200 dark:border-white/5 hover:border-cyan-500/30'
-                                            }`}
-                                    >
-                                        <div className="flex items-center gap-4 sm:gap-6">
-                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg transition-all ${assignment.completed
-                                                ? 'bg-emerald-500 text-white'
-                                                : 'bg-cyan-500/10 text-cyan-500 group-hover:bg-cyan-500 group-hover:text-white'
-                                                }`}>
-                                                {assignment.completed ? (
-                                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                                                        <polyline points="20 6 9 17 4 12"></polyline>
-                                                    </svg>
-                                                ) : (
-                                                    index + 1
-                                                )}
-                                            </div>
-                                            <div>
-                                                <h3 className="font-bold text-lg mb-1">
-                                                    {assignment.exercise?.name}
-                                                </h3>
-                                                <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
-                                                    <span className="flex items-center gap-1.5">
-                                                        <ListChecks size={16} className="text-cyan-500" />
-                                                        {assignment.sets} sets
-                                                    </span>
-                                                    <span className="flex items-center gap-1.5">
-                                                        <RotateCw size={16} className="text-emerald-500" />
-                                                        {assignment.reps_per_set} reps
-                                                    </span>
-                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${assignment.completed
-                                                        ? 'bg-emerald-500/10 text-emerald-500'
-                                                        : 'bg-orange-500/10 text-orange-500'
-                                                        }`}>
-                                                        {assignment.completed ? '✓ Completed' : 'Incomplete'}
-                                                    </span>
-                                                </div>
-                                            </div>
+                {assignments.length ? (
+                    <div className="grid gap-3">
+                        {assignments.map((a, i) => {
+                            const done = a.completed || a.status === 'completed'
+                            return (
+                                <Card key={a.id}>
+                                    <CardContent className="flex items-center gap-4">
+                                        <div className={cn('flex size-10 shrink-0 items-center justify-center rounded-md text-sm font-semibold', done ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground')}>
+                                            {done ? <CheckCircle2 className="size-5" /> : i + 1}
                                         </div>
-
-                                        <button
-                                            onClick={() => startSession(index)}
-                                            className={`px-6 py-2 rounded-lg font-semibold transition-opacity ${assignment.completed
-                                                ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                                                : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:opacity-90'
-                                                }`}
-                                        >
-                                            {assignment.completed ? 'Redo' : 'Start'}
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-3xl border border-dashed border-slate-300 dark:border-white/10">
-                                <p className="text-slate-500 dark:text-slate-400 text-lg">No exercises assigned yet.</p>
-                            </div>
-                        )}
-                    </main>
-                </div>
-            )}
-        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate font-medium">{a.exercise?.name}</p>
+                                            <p className="text-sm text-muted-foreground">{a.sets} sets · {a.reps_per_set} reps{a.notes ? ` · ${a.notes}` : ''}</p>
+                                        </div>
+                                        <Badge variant={done ? 'secondary' : 'outline'} className="hidden sm:inline-flex">{done ? 'Completed' : 'Pending'}</Badge>
+                                        <Button variant={done ? 'outline' : 'default'} onClick={() => startSession(i)}>{done ? 'Redo' : 'Start'}</Button>
+                                    </CardContent>
+                                </Card>
+                            )
+                        })}
+                    </div>
+                ) : (
+                    <Card>
+                        <CardContent className="py-12 text-center text-sm text-muted-foreground">No exercises assigned yet.</CardContent>
+                    </Card>
+                )}
+            </div>
+        </AppShell>
     )
 }

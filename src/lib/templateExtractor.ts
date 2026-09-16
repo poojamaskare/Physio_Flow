@@ -127,19 +127,18 @@ export function identifyPhases(keyframes: KeyframeData[]): PhaseDefinition[] {
     const angleStats: Record<string, { min: number, max: number, minFrame: KeyframeData, maxFrame: KeyframeData }> = {}
 
     for (const angleName of angleNames) {
-        const values = keyframes.map(kf => kf.angles[angleName]).filter(v => v !== undefined)
-        if (values.length > 0) {
-            const min = Math.min(...values)
-            const max = Math.max(...values)
+        const framesWithAngle = keyframes.filter(kf => kf.angles[angleName] !== undefined)
+        if (framesWithAngle.length > 0) {
+            // Use 5th/95th percentile frames instead of absolute min/max so one bad
+            // pose detection can't define the extreme.
+            const sorted = [...framesWithAngle].sort((a, b) => a.angles[angleName] - b.angles[angleName])
+            const lo = Math.floor(0.05 * (sorted.length - 1))
+            const hi = Math.ceil(0.95 * (sorted.length - 1))
+            const minFrame = sorted[lo]
+            const maxFrame = sorted[hi]
+            const min = minFrame.angles[angleName]
+            const max = maxFrame.angles[angleName]
             const variance = max - min
-
-            // Find the frames with min and max values
-            let minFrame = keyframes[0]
-            let maxFrame = keyframes[0]
-            for (const kf of keyframes) {
-                if (kf.angles[angleName] === min) minFrame = kf
-                if (kf.angles[angleName] === max) maxFrame = kf
-            }
 
             angleStats[angleName] = { min, max, minFrame, maxFrame }
 
@@ -269,10 +268,11 @@ export async function extractTemplateFromVideo(
     const keyframes: KeyframeData[] = []
     const duration = videoElement.duration
 
-    // OPTIMIZE: Only 6 samples for fast processing (start, middle, end positions)
-    const maxSamples = 6
+    // Sample the whole video densely so start/peak land on the real extremes of the movement.
+    // ponytail: cap at 120 frames (~30s at 250ms) to bound extraction time on long videos
+    const maxSamples = 120
     const actualInterval = Math.max(sampleIntervalMs, (duration * 1000) / maxSamples)
-    const numSamples = Math.min(maxSamples, Math.floor((duration * 1000) / actualInterval))
+    const numSamples = Math.floor((duration * 1000) / actualInterval)
 
     console.log(`⚡ Fast extraction: ${numSamples} frames from ${duration.toFixed(1)}s video`)
 

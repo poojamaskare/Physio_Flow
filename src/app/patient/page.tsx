@@ -2,344 +2,318 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { getCurrentUser, signOut, User } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
-import Sidebar from '../components/Sidebar'
-import ThemeToggle from '../components/ThemeToggle'
-import Link from 'next/link'
-import { FileText, Flame, BarChart3, Phone, Menu, Activity } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import AppShell from '../components/AppShell'
 import ProgressChart from '../components/ProgressChart'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardAction } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Activity, Calendar, CheckCircle2, ChevronRight, Flame, Utensils, Mail, Loader2 } from 'lucide-react'
 
-interface Exercise {
-    id: string
-    name: string
-    description: string
-    duration_seconds: number
-    difficulty: string
-    video_url: string
+interface Exercise { id: string; name: string; description: string; duration_seconds: number; difficulty: string; video_url: string }
+interface PatientExercise { id: string; exercise_id: string; reps_per_set: number; sets: number; notes: string; status: string; completed?: boolean; exercise?: Exercise }
+interface Session { id: string; accuracy: number; duration: number; started_at: string; exerciseName: string }
+
+const dateKey = (d: Date) => d.toISOString().slice(0, 10)
+
+// Counts consecutive days with ≥1 session, backwards from today (or yesterday if today is empty).
+function getStreak(sessions: Session[]) {
+    const days = new Set(sessions.map(s => dateKey(new Date(s.started_at))))
+    const cursor = new Date()
+    if (!days.has(dateKey(cursor))) cursor.setDate(cursor.getDate() - 1)
+    let n = 0
+    while (days.has(dateKey(cursor))) { n++; cursor.setDate(cursor.getDate() - 1) }
+    return n
 }
 
-interface PatientExercise {
-    id: string
-    exercise_id: string
-    reps_per_set: number
-    sets: number
-    notes: string
-    status: string
-    completed?: boolean
-    exercise?: Exercise
+function getHeatmapDays(sessions: Session[], days = 28) {
+    const count = new Map<string, number>()
+    sessions.forEach(s => { const k = dateKey(new Date(s.started_at)); count.set(k, (count.get(k) || 0) + 1) })
+    return Array.from({ length: days }, (_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - (days - 1 - i))
+        const key = dateKey(d)
+        return { key, count: count.get(key) || 0 }
+    })
+}
+
+function accuracyBadge(a: number) {
+    if (a >= 90) return <Badge variant="secondary" className="text-success">Optimal</Badge>
+    if (a >= 70) return <Badge variant="secondary" className="text-warning">Satisfactory</Badge>
+    return <Badge variant="destructive">Needs review</Badge>
 }
 
 function PatientDashboardContent() {
     const router = useRouter()
-    const searchParams = useSearchParams()
-    // Default to 'dashboard' if no tab param is present
-    const activeTab = searchParams.get('tab') || 'dashboard'
+    const activeTab = useSearchParams().get('tab') || 'dashboard'
 
     const [user, setUser] = useState<User | null>(null)
     const [loading, setLoading] = useState(true)
     const [assignments, setAssignments] = useState<PatientExercise[]>([])
+    const [sessions, setSessions] = useState<Session[]>([])
     const [doctor, setDoctor] = useState<{ name: string; email: string; phone: string } | null>(null)
     const [dietPlan, setDietPlan] = useState<string | null>(null)
-    const [progress, setProgress] = useState({ completed: 0, total: 0 })
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
     useEffect(() => {
-        checkAuth()
-    }, [])
+        (async () => {
+            const current = await getCurrentUser()
+            if (!current || current.role !== 'patient') return router.push('/login')
+            const { data } = await supabase.from('users').select('id, email, name, role, phone, age, injury, doctor_id, diet_plan').eq('id', current.id).single()
+            if (data) {
+                setUser({ id: data.id, email: data.email, name: data.name, role: 'patient', phone: data.phone || undefined, age: data.age, injury: data.injury || undefined })
+                setDietPlan(data.diet_plan || null)
+                if (data.doctor_id) {
+                    const { data: doc } = await supabase.from('users').select('name, email, phone').eq('id', data.doctor_id).single()
+                    setDoctor(doc)
+                }
+            } else {
+                setUser(current)
+            }
+            setLoading(false)
+        })()
+    }, [router])
 
     useEffect(() => {
-        if (user) {
-            fetchAssignments()
-            fetchDoctor()
-            fetchDietPlan()
-        }
+        if (!user) return
+        supabase.from('patient_exercises').select('*, exercise:exercises(*)').eq('patient_id', user.id).then(({ data }) => setAssignments(data || []))
+        ;(async () => {
+            const { data } = await supabase.from('sessions').select('id, accuracy, duration, started_at, exercise_id').eq('patient_id', user.id).order('started_at', { ascending: false })
+            if (!data) return
+            const { data: ex } = await supabase.from('exercises').select('id, name')
+            const names = new Map(ex?.map(e => [e.id, e.name]) || [])
+            setSessions(data.map(s => ({ id: s.id, accuracy: s.accuracy || 0, duration: s.duration || 0, started_at: s.started_at, exerciseName: names.get(s.exercise_id) || 'Session' })))
+        })()
     }, [user])
 
-    const checkAuth = async () => {
-        const currentUser = await getCurrentUser()
-        if (!currentUser || currentUser.role !== 'patient') {
-            router.push('/login')
-            return
-        }
-        setUser(currentUser)
-        setLoading(false)
-    }
-
-    const fetchAssignments = async () => {
-        if (!user) return
-
-        const { data } = await supabase
-            .from('patient_exercises')
-            .select(`
-                *,
-                exercise:exercises(*)
-            `)
-            .eq('patient_id', user.id)
-
-        const exercises = data || []
-        setAssignments(exercises)
-
-        // Calculate progress
-        const completed = exercises.filter(e => e.status === 'completed' || e.completed).length
-        setProgress({
-            completed,
-            total: exercises.length
-        })
-    }
-
-    const fetchDoctor = async () => {
-        if (!user) return
-
-        const { data: patientData } = await supabase
-            .from('users')
-            .select('doctor_id')
-            .eq('id', user.id)
-            .single()
-
-        if (patientData?.doctor_id) {
-            const { data: doctorData } = await supabase
-                .from('users')
-                .select('name, email, phone')
-                .eq('id', patientData.doctor_id)
-                .single()
-
-            setDoctor(doctorData)
-        }
-    }
-
-    const fetchDietPlan = async () => {
-        if (!user) return
-
-        const { data } = await supabase
-            .from('users')
-            .select('diet_plan')
-            .eq('id', user.id)
-            .single()
-
-        setDietPlan(data?.diet_plan || 'Stay hydrated and eat balanced meals.')
-    }
-
-    const handleLogout = async () => {
-        await signOut()
-        router.push('/login')
-    }
+    const handleLogout = async () => { await signOut(); router.push('/login') }
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-cyan-500"></div>
+            <div className="flex min-h-dvh items-center justify-center bg-background">
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
             </div>
         )
     }
 
-    const pendingExercises = assignments.filter(e => e.status !== 'completed' && !e.completed).length
-    const progressPercentage = progress.total ? Math.round((progress.completed / progress.total) * 100) : 0
+    const completed = assignments.filter(a => a.status === 'completed' || a.completed).length
+    const pct = assignments.length ? Math.round((completed / assignments.length) * 100) : 0
+    const streak = getStreak(sessions)
+    const heatmap = getHeatmapDays(sessions)
+    const avgAccuracy = sessions.length ? Math.round(sessions.reduce((s, x) => s + x.accuracy, 0) / sessions.length) : 0
+    const today = dateKey(new Date())
+    const doneToday = new Set(sessions.filter(s => dateKey(new Date(s.started_at)) === today).map(s => s.exerciseName)).size
+    const now = new Date()
+    const activeDays = new Set(sessions.map(s => new Date(s.started_at)).filter(d => d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()).map(dateKey)).size
 
-    // Render helper for the main dashboard view
-    const renderDashboard = () => (
-        <div className="space-y-6">
-            {/* Recovery Progress - Large Card */}
-            <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-sm border border-slate-100 dark:border-white/5 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
-                <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 absolute inset-0 opacity-50"></div>
-
-                <div className="relative z-10 flex-1 text-center md:text-left">
-                    <h2 className="text-xl font-bold mb-2">Recovery Progress</h2>
-                    <p className="text-slate-500 dark:text-slate-400 max-w-sm">
-                        You're making excellent progress! Keep following your treatment plan to reach full recovery.
-                    </p>
-                </div>
-
-                <div className="relative z-10 flex flex-col items-center">
-                    <div className="relative w-40 h-40 flex items-center justify-center">
-                        <svg className="transform -rotate-90 w-full h-full">
-                            <circle cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-100 dark:text-slate-700" />
-                            <circle cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="12" fill="transparent" strokeDasharray={440} strokeDashoffset={440 - (440 * progressPercentage) / 100} strokeLinecap="round" className="text-cyan-500 transition-all duration-1000 ease-out" />
-                        </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-4xl font-bold text-slate-900 dark:text-white">{progressPercentage}%</span>
-                            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Complete</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Dashboard Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <Link href="/exercise" className="block group">
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-white/5 h-full hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer relative overflow-hidden">
-                        <div className="w-12 h-12 rounded-2xl bg-purple-500 text-white flex items-center justify-center mb-4 shadow-lg shadow-purple-500/20">
-                            <FileText size={24} className="text-white" />
-                        </div>
-                        <h3 className="font-bold text-lg mb-1 group-hover:text-purple-500 transition-colors">Today's Exercise</h3>
-                        <p className="text-slate-500 dark:text-slate-400 text-sm">
-                            {pendingExercises} exercise{pendingExercises !== 1 && 's'} pending
-                        </p>
-                    </div>
-                </Link>
-
-                <Link href="/patient?tab=diet" className="block group">
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-white/5 h-full hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer">
-                        <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/20">
-                            <Flame size={24} className="text-white" />
-                        </div>
-                        <h3 className="font-bold text-lg mb-1 group-hover:text-emerald-500 transition-colors">Diet Plan</h3>
-                        <p className="text-slate-500 dark:text-slate-400 text-sm truncate">
-                            View your meal plan
-                        </p>
-                    </div>
-                </Link>
-
-                <Link href="/patient?tab=progress" className="block group">
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-white/5 h-full hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer">
-                        <div className="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center mb-4 shadow-lg shadow-orange-500/20">
-                            <BarChart3 size={24} className="text-white" />
-                        </div>
-                        <h3 className="font-bold text-lg mb-1 group-hover:text-orange-500 transition-colors">My Progress</h3>
-                        <p className="text-slate-500 dark:text-slate-400 text-sm">
-                            Track improvements
-                        </p>
-                    </div>
-                </Link>
-
-                <div className="bg-gradient-to-br from-cyan-400 to-teal-400 p-6 rounded-3xl shadow-sm h-full text-white relative overflow-hidden group hover:shadow-cyan-500/20 hover:shadow-lg transition-all">
-                    <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center mb-4 text-white">
-                        <Phone size={24} className="text-white" />
-                    </div>
-                    <h3 className="font-bold text-lg mb-1">Call Doctor</h3>
-                    <p className="text-white/80 text-sm mb-1">
-                        {doctor ? `Speak to ${doctor.name}` : 'Contact Support'}
-                    </p>
-                </div>
-            </div>
-        </div>
-    )
-
-    // Render helper for diet plan view
-    const renderDietPlan = () => (
-        <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-                <span className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500"><Flame size={24} /></span>
-                Your Diet Plan
-            </h2>
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-white/5">
-                <p className="text-lg leading-relaxed text-slate-600 dark:text-slate-300 whitespace-pre-line">
-                    {dietPlan}
-                </p>
-            </div>
-        </div>
-    )
-
-    // Render helper for progress view
-    const renderProgress = () => (
-        <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-                <span className="p-2 bg-orange-500/10 rounded-lg text-orange-500"><BarChart3 size={24} /></span>
-                My Progress
-            </h2>
-            <div className="grid gap-6">
-                <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-white/5">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="font-bold text-lg text-slate-900 dark:text-white">Overall Completion</h3>
-                        <span className="text-3xl font-bold text-cyan-500">{progressPercentage}%</span>
-                    </div>
-                    <div className="w-full h-4 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-cyan-500 to-teal-400 transition-all duration-1000" style={{ width: `${progressPercentage}%` }}></div>
-                    </div>
-                    <p className="mt-4 text-slate-500 dark:text-slate-400">
-                        You have completed <span className="font-bold text-slate-900 dark:text-white">{progress.completed}</span> out of <span className="font-bold text-slate-900 dark:text-white">{progress.total}</span> assigned exercises.
-                    </p>
-                </div>
-
-                {/* Weekly Activity Chart */}
-                {user?.id && <ProgressChart userId={user.id} />}
-
-                <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-white/5">
-                    <h3 className="font-bold text-lg mb-4 text-slate-900 dark:text-white">Exercise History</h3>
-                    {assignments.length > 0 ? (
-                        <div className="space-y-4">
-                            {assignments.map((assignment, i) => (
-                                <div key={assignment.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-white/5 hover:border-cyan-500/20 transition-colors">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-2 h-12 rounded-full ${assignment.status === 'completed' || assignment.completed ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}></div>
-                                        <div>
-                                            <p className="font-semibold text-slate-900 dark:text-white">{assignment.exercise?.name}</p>
-                                            <p className="text-xs text-slate-500">{assignment.sets} sets • {assignment.reps_per_set} reps</p>
-                                        </div>
-                                    </div>
-                                    <span className={`px-3 py-1 rounded-lg text-xs font-bold ${assignment.status === 'completed' || assignment.completed
-                                        ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400'
-                                        : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-                                        }`}>
-                                        {assignment.status === 'completed' || assignment.completed ? 'Completed' : 'Pending'}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-10 text-slate-500">
-                            No activity recorded yet.
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    )
+    const titles: Record<string, string> = { dashboard: 'Dashboard', diet: 'Diet plan', progress: 'Progress' }
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white transition-colors duration-300 font-sans">
-            <Sidebar
-                user={user}
-                onLogout={handleLogout}
-                isOpen={isSidebarOpen}
-                onClose={() => setIsSidebarOpen(false)}
-            />
-
-            {/* Mobile Header */}
-            <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-white/10 p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-600 dark:text-slate-300">
-                        <Menu size={24} />
-                    </button>
-                    <span className="font-bold text-lg bg-gradient-to-r from-cyan-600 to-teal-500 dark:from-cyan-400 dark:to-teal-400 bg-clip-text text-transparent">
-                        PhysioFlow
-                    </span>
-                </div>
-                <ThemeToggle />
-            </div>
-
-            <main className="md:ml-64 p-4 md:p-8 pt-20 md:pt-8 transition-all duration-300">
-                {/* Top Header Area */}
-                <div className="flex justify-between items-start mb-8">
+        <AppShell user={user} onLogout={handleLogout} title={titles[activeTab] || 'Dashboard'} activeTab={activeTab}>
+            {activeTab === 'dashboard' && (
+                <div className="space-y-6">
                     <div>
-                        <h1 className="text-3xl font-bold mb-1">
-                            {activeTab === 'dashboard' && `Welcome Back, ${user?.name?.split(' ')[0]}!`}
-                            {activeTab === 'diet' && 'Diet Plan'}
-                            {activeTab === 'progress' && 'Progress Tracking'}
-                        </h1>
-                        <p className="text-slate-500 dark:text-slate-400">
-                            {activeTab === 'dashboard' && 'Keep up the great work on your recovery journey.'}
-                            {activeTab === 'diet' && 'A personalized nutrition plan for your recovery.'}
-                            {activeTab === 'progress' && 'Visualize your improvement over time.'}
+                        <h2 className="text-2xl font-semibold tracking-tight">Welcome back, {user?.name?.split(' ')[0] || 'there'}</h2>
+                        <p className="text-sm text-muted-foreground">
+                            Day {streak} of your {(user?.injury || 'recovery').toLowerCase()} plan{doctor ? ` with ${doctor.name}` : ''}.
                         </p>
                     </div>
-                    <div className="hidden md:block">
-                        <ThemeToggle />
+
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <Card>
+                            <CardHeader>
+                                <CardDescription>Recovery progress</CardDescription>
+                                <CardTitle className="text-2xl tabular-nums">{pct}%</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <Progress value={pct} />
+                                <p className="mt-2 text-xs text-muted-foreground">{completed} of {assignments.length} exercises completed</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardDescription>Day streak</CardDescription>
+                                <CardTitle className="flex items-center gap-2 text-2xl tabular-nums"><Flame className="size-5 text-warning" />{streak}</CardTitle>
+                            </CardHeader>
+                            <CardContent><p className="text-xs text-muted-foreground">Consecutive active days</p></CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardDescription>Avg. form accuracy</CardDescription>
+                                <CardTitle className="text-2xl tabular-nums">{avgAccuracy}%</CardTitle>
+                            </CardHeader>
+                            <CardContent><p className="text-xs text-muted-foreground">Across {sessions.length} sessions</p></CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardDescription>Active days this month</CardDescription>
+                                <CardTitle className="text-2xl tabular-nums">{activeDays}<span className="text-base font-normal text-muted-foreground">/{now.getDate()}</span></CardTitle>
+                            </CardHeader>
+                            <CardContent><p className="text-xs text-muted-foreground">{doneToday} exercise{doneToday === 1 ? '' : 's'} done today</p></CardContent>
+                        </Card>
+                    </div>
+
+                    <div className="grid gap-4 lg:grid-cols-3">
+                        <div className="space-y-4 lg:col-span-2">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Today&apos;s plan</CardTitle>
+                                    <CardDescription>{doctor ? `Assigned by ${doctor.name}` : 'Assigned exercises'} · {assignments.length} exercise{assignments.length === 1 ? '' : 's'}</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {assignments.length ? (
+                                        <ul className="divide-y">
+                                            {assignments.map(a => {
+                                                const done = a.status === 'completed' || a.completed
+                                                return (
+                                                    <li key={a.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                                                        <div className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', done ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground')}>
+                                                            {done ? <CheckCircle2 className="size-4" /> : <Activity className="size-4" />}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="truncate text-sm font-medium">{a.exercise?.name}</p>
+                                                            <p className="text-xs text-muted-foreground">{a.sets} sets · {a.reps_per_set} reps{a.notes ? ` · ${a.notes}` : ''}</p>
+                                                        </div>
+                                                        {done ? (
+                                                            <Badge variant="secondary">Done</Badge>
+                                                        ) : (
+                                                            <Button size="sm" nativeButton={false} render={<Link href="/exercise" />}>Start <ChevronRight /></Button>
+                                                        )}
+                                                    </li>
+                                                )
+                                            })}
+                                        </ul>
+                                    ) : (
+                                        <p className="py-6 text-center text-sm text-muted-foreground">No exercises assigned yet.</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+                            {user?.id && <ProgressChart userId={user.id} />}
+                        </div>
+
+                        <div className="space-y-4">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Your physiotherapist</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    <p className="text-sm font-medium">{doctor?.name || 'No doctor assigned'}</p>
+                                    {doctor && (
+                                        <Button variant="outline" size="sm" className="w-full" nativeButton={false} render={<a href={`mailto:${doctor.email}`} />}>
+                                            <Mail /> Message doctor
+                                        </Button>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Activity</CardTitle>
+                                    <CardDescription>Last 28 days</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-7 gap-1.5">
+                                        {heatmap.map(d => (
+                                            <span key={d.key} title={d.key} className={cn('aspect-square rounded-sm', d.count === 0 ? 'bg-muted' : d.count === 1 ? 'bg-success/50' : 'bg-success')} />
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2"><Utensils className="size-4" />Diet plan</CardTitle>
+                                    <CardAction>
+                                        <Button variant="link" size="sm" nativeButton={false} render={<Link href="/patient?tab=diet" />}>View</Button>
+                                    </CardAction>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="line-clamp-3 text-sm text-muted-foreground">{dietPlan || 'No diet plan assigned yet.'}</p>
+                                </CardContent>
+                            </Card>
+                        </div>
                     </div>
                 </div>
+            )}
 
-                {activeTab === 'dashboard' && renderDashboard()}
-                {activeTab === 'diet' && renderDietPlan()}
-                {activeTab === 'progress' && renderProgress()}
-            </main>
-        </div>
+            {activeTab === 'diet' && (
+                <div className="mx-auto max-w-2xl space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Diet plan</CardTitle>
+                            <CardDescription>Dietary instructions prescribed by {doctor?.name || 'your doctor'}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {dietPlan ? (
+                                <p className="text-sm leading-relaxed whitespace-pre-line">{dietPlan}</p>
+                            ) : (
+                                <p className="py-6 text-center text-sm text-muted-foreground">No diet plan assigned yet. Stay hydrated and eat balanced meals.</p>
+                            )}
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>General rehabilitation guidelines</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ul className="list-inside list-disc space-y-1.5 text-sm text-muted-foreground">
+                                <li>Increase lean protein intake to support muscle and joint tissue repair.</li>
+                                <li>Incorporate anti-inflammatory foods (omega-3 rich fish, leafy greens, berries).</li>
+                                <li>Stay hydrated: aim for 2.5–3 litres of water daily.</li>
+                                <li>Limit processed sugars and alcohol, which can worsen inflammation.</li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
+            {activeTab === 'progress' && (
+                <div className="space-y-4">
+                    {user?.id && <ProgressChart userId={user.id} />}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Calendar className="size-4" />Session history</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {sessions.length ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Exercise</TableHead>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Duration</TableHead>
+                                            <TableHead>Accuracy</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {sessions.map(s => (
+                                            <TableRow key={s.id}>
+                                                <TableCell className="font-medium">{s.exerciseName}</TableCell>
+                                                <TableCell className="text-muted-foreground">{new Date(s.started_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</TableCell>
+                                                <TableCell className="tabular-nums text-muted-foreground">{Math.round(s.duration / 60) || 1}m</TableCell>
+                                                <TableCell className="flex items-center gap-2"><span className="tabular-nums">{s.accuracy}%</span>{accuracyBadge(s.accuracy)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            ) : (
+                                <p className="py-6 text-center text-sm text-muted-foreground">No sessions recorded yet.</p>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+        </AppShell>
     )
-
 }
 
 export default function PatientDashboard() {
     return (
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"><div className="w-8 h-8 border-2 border-cyan-500 rounded-full animate-spin border-t-transparent"></div></div>}>
+        <Suspense fallback={<div className="flex min-h-dvh items-center justify-center bg-background"><Skeleton className="size-6 rounded-full" /></div>}>
             <PatientDashboardContent />
         </Suspense>
     )

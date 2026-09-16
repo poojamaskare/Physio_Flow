@@ -4,8 +4,10 @@ export interface User {
     id: string
     email: string
     name: string
-    role: 'admin' | 'doctor' | 'patient'
+    role: 'doctor' | 'patient'
     phone?: string
+    age?: number | null
+    injury?: string
 }
 
 // Simple hash function for demo (not for production!)
@@ -22,7 +24,7 @@ export async function signUp(
     email: string,
     password: string,
     name: string,
-    role: 'admin' | 'doctor' | 'patient',
+    role: 'doctor' | 'patient',
     additionalData?: {
         phone?: string
         age?: number | null
@@ -101,6 +103,7 @@ export async function signOut() {
     if (typeof window !== 'undefined') {
         localStorage.removeItem('physioflow_user')
     }
+    await supabase.auth.signOut().catch(() => {})
 }
 
 // Get current logged-in user
@@ -149,4 +152,49 @@ export async function getCurrentUser(): Promise<User | null> {
 export async function isAuthenticated(): Promise<boolean> {
     const user = await getCurrentUser()
     return user !== null
+}
+
+// ── Google OAuth (via Supabase Auth) ─────────────────────────────
+// The app keeps its own `users` table as the source of truth, so after Google
+// returns we look the user up by email and mirror them into localStorage.
+
+export async function signInWithGoogle() {
+    const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+    })
+    if (error) throw error
+}
+
+/** Returns the app user for the current Supabase Auth session, or null if they haven't picked a role yet. */
+export async function resolveOAuthUser(): Promise<{ user: User | null; email: string; name: string }> {
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    if (!authUser?.email) throw new Error('Google sign-in did not return an email')
+    const email = authUser.email
+    const name = authUser.user_metadata?.full_name || authUser.user_metadata?.name || email.split('@')[0]
+
+    const { data } = await supabase.from('users').select('id, email, name, role, phone').eq('email', email).maybeSingle()
+    if (data) {
+        localStorage.setItem('physioflow_user', JSON.stringify(data))
+        return { user: data as User, email, name }
+    }
+    return { user: null, email, name }
+}
+
+/** First-time Google user: create their row with the chosen role. */
+export async function completeOAuthSignUp(role: 'doctor' | 'patient', extra?: { age?: number | null; injury?: string }) {
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    if (!authUser?.email) throw new Error('No active session')
+    const name = authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email.split('@')[0]
+    const user = { id: authUser.id, email: authUser.email, name, role }
+    // ponytail: password column is required by the schema; OAuth users get an unusable random value
+    const { error } = await supabase.from('users').insert({
+        ...user,
+        password: crypto.randomUUID(),
+        age: extra?.age ?? null,
+        injury: extra?.injury || null,
+    })
+    if (error) throw error
+    localStorage.setItem('physioflow_user', JSON.stringify(user))
+    return { user }
 }
