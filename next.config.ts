@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 import path from 'path';
 
 const nextConfig: NextConfig = {
+  images: { remotePatterns: [{ protocol: 'https', hostname: 'images.pexels.com' }] },
+
   // Exclude problematic packages from SSR bundling (from upstream)
   serverExternalPackages: [
     '@mediapipe/pose',

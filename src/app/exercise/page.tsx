@@ -6,6 +6,7 @@ import { getCurrentUser, signOut, User } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import AppShell from '../components/AppShell'
+import NotificationBell from '../components/NotificationBell'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -430,7 +431,7 @@ export default function ExercisePage() {
     }
 
     return (
-        <AppShell user={user} onLogout={handleLogout} title="Exercise">
+        <AppShell user={user} onLogout={handleLogout} title="Exercise" actions={user && <NotificationBell patientId={user.id} />}>
             <div className="space-y-4">
                 <div>
                     <h2 className="text-2xl font-semibold tracking-tight">Your exercises</h2>

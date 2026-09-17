@@ -7,7 +7,9 @@ import { getCurrentUser, signOut, User } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import AppShell from '../components/AppShell'
+import NotificationBell from '../components/NotificationBell'
 import ProgressChart from '../components/ProgressChart'
+import DietPlanView from '../components/DietPlanView'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardAction } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -113,7 +115,7 @@ function PatientDashboardContent() {
     const titles: Record<string, string> = { dashboard: 'Dashboard', diet: 'Diet plan', progress: 'Progress' }
 
     return (
-        <AppShell user={user} onLogout={handleLogout} title={titles[activeTab] || 'Dashboard'} activeTab={activeTab}>
+        <AppShell user={user} onLogout={handleLogout} title={titles[activeTab] || 'Dashboard'} activeTab={activeTab} actions={user && <NotificationBell patientId={user.id} />}>
             {activeTab === 'dashboard' && (
                 <div className="space-y-6">
                     <div>
@@ -240,36 +242,7 @@ function PatientDashboardContent() {
                 </div>
             )}
 
-            {activeTab === 'diet' && (
-                <div className="mx-auto max-w-2xl space-y-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Diet plan</CardTitle>
-                            <CardDescription>Dietary instructions prescribed by {doctor?.name || 'your doctor'}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {dietPlan ? (
-                                <p className="text-sm leading-relaxed whitespace-pre-line">{dietPlan}</p>
-                            ) : (
-                                <p className="py-6 text-center text-sm text-muted-foreground">No diet plan assigned yet. Stay hydrated and eat balanced meals.</p>
-                            )}
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>General rehabilitation guidelines</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <ul className="list-inside list-disc space-y-1.5 text-sm text-muted-foreground">
-                                <li>Increase lean protein intake to support muscle and joint tissue repair.</li>
-                                <li>Incorporate anti-inflammatory foods (omega-3 rich fish, leafy greens, berries).</li>
-                                <li>Stay hydrated: aim for 2.5–3 litres of water daily.</li>
-                                <li>Limit processed sugars and alcohol, which can worsen inflammation.</li>
-                            </ul>
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
+            {activeTab === 'diet' && <DietPlanView plan={dietPlan} doctorName={doctor?.name} />}
 
             {activeTab === 'progress' && (
                 <div className="space-y-4">
