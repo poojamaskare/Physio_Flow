@@ -10,6 +10,7 @@ import AppShell from '../components/AppShell'
 import NotificationBell from '../components/NotificationBell'
 import ProgressChart from '../components/ProgressChart'
 import DietPlanView from '../components/DietPlanView'
+import VoiceCoach from '../components/VoiceCoach'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardAction } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -218,10 +219,13 @@ function PatientDashboardContent() {
                                     <CardDescription>Last 28 days</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="grid grid-cols-7 gap-1.5">
+                                    <div className="grid w-fit grid-cols-7 gap-1">
                                         {heatmap.map(d => (
-                                            <span key={d.key} title={d.key} className={cn('aspect-square rounded-sm', d.count === 0 ? 'bg-muted' : d.count === 1 ? 'bg-success/50' : 'bg-success')} />
+                                            <span key={d.key} title={d.key} className={cn('size-3 rounded-[3px]', d.count === 0 ? 'bg-muted' : d.count === 1 ? 'bg-success/60' : 'bg-success')} />
                                         ))}
+                                    </div>
+                                    <div className="mt-3 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                        Less <span className="size-2.5 rounded-[2px] bg-muted" /><span className="size-2.5 rounded-[2px] bg-success/60" /><span className="size-2.5 rounded-[2px] bg-success" /> More
                                     </div>
                                 </CardContent>
                             </Card>
@@ -243,6 +247,8 @@ function PatientDashboardContent() {
             )}
 
             {activeTab === 'diet' && <DietPlanView plan={dietPlan} doctorName={doctor?.name} />}
+
+            {user && <VoiceCoach patientId={user.id} />}
 
             {activeTab === 'progress' && (
                 <div className="space-y-4">

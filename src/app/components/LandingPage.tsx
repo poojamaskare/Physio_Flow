@@ -77,11 +77,11 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       const handleScroll = () => {
         if (nav) {
           if (window.scrollY > 50) {
-            nav.classList.add('py-2', 'shadow-lg');
-            nav.classList.remove('py-4');
+            nav.classList.add('py-3', 'shadow-lg');
+            nav.classList.remove('py-5');
           } else {
-            nav.classList.add('py-4');
-            nav.classList.remove('py-2', 'shadow-lg');
+            nav.classList.add('py-5');
+            nav.classList.remove('py-3', 'shadow-lg');
           }
         }
       };
@@ -172,19 +172,19 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
       {/* Top Navigation */}
       <nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-border/20 transition-all duration-300">
-        <div className="flex justify-between items-center px-6 md:px-16 py-4 w-full max-w-[1440px] mx-auto">
+        <div className="flex justify-between items-center px-6 md:px-16 py-5 w-full max-w-[1440px] mx-auto">
           <div className="cursor-pointer" onClick={onGetStarted}>
-            <span className="text-base font-semibold tracking-tight text-foreground">PhysioFlow</span>
+            <span className="text-2xl font-semibold tracking-tight text-foreground">PhysioFlow</span>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="hidden md:flex gap-6">
-              <a className="text-sm text-muted-foreground hover:text-foreground transition-colors" href="#">Product</a>
-              <a className="text-sm text-muted-foreground hover:text-foreground transition-colors" href="#">Solutions</a>
-              <a className="text-sm text-muted-foreground hover:text-foreground transition-colors" href="#">Doctors</a>
+          <div className="flex items-center gap-8">
+            <div className="hidden md:flex gap-8">
+              <a className="text-base font-medium text-muted-foreground hover:text-foreground transition-colors" href="#">Product</a>
+              <a className="text-base font-medium text-muted-foreground hover:text-foreground transition-colors" href="#">Solutions</a>
+              <a className="text-base font-medium text-muted-foreground hover:text-foreground transition-colors" href="#">Doctors</a>
             </div>
             <ThemeToggle />
             <div>
-              <button onClick={onGetStarted} className="bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium transition-colors hover:bg-primary/80">
+              <button onClick={onGetStarted} className="bg-primary text-primary-foreground px-6 py-3 rounded-full text-base font-medium transition-colors hover:bg-primary/80">
                 Start recovery
               </button>
             </div>

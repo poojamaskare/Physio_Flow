@@ -1,6 +1,7 @@
 'use client'
 
-import { ReactNode, useState } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
+import { cn } from '@/lib/utils'
 import { Menu } from 'lucide-react'
 import { User } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
@@ -20,11 +21,22 @@ interface AppShellProps {
 /** Shared dashboard frame: sidebar + sticky header + content column. */
 export default function AppShell({ user, onLogout, title, items, activeTab, actions, children }: AppShellProps) {
     const [open, setOpen] = useState(false)
+    const [collapsed, setCollapsed] = useState(false)
+
+    useEffect(() => {
+        try { setCollapsed(localStorage.getItem('physioflow_sidebar') === 'collapsed') } catch { } // eslint-disable-line react-hooks/set-state-in-effect -- hydrate persisted preference
+    }, [])
+    const toggleCollapse = () => {
+        setCollapsed(c => {
+            try { localStorage.setItem('physioflow_sidebar', c ? 'expanded' : 'collapsed') } catch { }
+            return !c
+        })
+    }
 
     return (
         <div className="min-h-dvh bg-background">
-            <Sidebar user={user} onLogout={onLogout} isOpen={open} onClose={() => setOpen(false)} items={items} activeTab={activeTab} />
-            <div className="md:pl-60">
+            <Sidebar user={user} onLogout={onLogout} isOpen={open} onClose={() => setOpen(false)} items={items} activeTab={activeTab} collapsed={collapsed} onToggleCollapse={toggleCollapse} />
+            <div className={cn('transition-[padding] duration-300 ease-in-out', collapsed ? 'md:pl-16' : 'md:pl-60')}>
                 <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur md:px-6">
                     <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
                         <Menu className="size-4" />
